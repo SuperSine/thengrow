@@ -1,0 +1,48 @@
+<html>
+<head>
+<script type="text/javascript" src="porterstemmer.js"></script>
+<script type="text/javascript">
+function action() {
+    
+    var wordInfoDict = {};
+    var wordTag = {};
+    var info = {};
+	
+    var content = document.getElementById("content").value;
+    var re = /--{1,}|[^a-zA-Z'-]/ig;
+    var wordArray = content.replace(re, " ").split(" ");
+	document.getElementById("contentarea").innerHTML = content;
+	
+    for (var i = 0; i < wordArray.length;++i) {
+        var word = wordArray[i];
+        if(word.length <=1 || word.length>=50)continue;
+        var root = stemmer(word);
+        if (wordInfoDict[root] != undefined) {
+            if (wordInfoDict[root][word] != undefined) wordInfoDict[root][word] += 1;
+            else wordInfoDict[root][word] = 1;
+        } else {
+            wordInfoDict[root]={};
+            wordInfoDict[root][word]=1;
+            wordTag[root] = "";
+        }
+        
+    }
+    document.getElementById("resultarea").innerHTML = JSON.stringify(wordTag);
+}
+
+//addEventListener("click", action, false);
+//alert("fuck");
+</script>
+</head>
+<body>
+<textarea id="content">In probabilistic combinatorics, the questions are of the following type: what is the probability of a certain property for a random discrete object, such as a random graph? For instance, what is the average number of triangles in a random graph? Probabilistic methods are also used to determine the existence of combinatorial objects with certain prescribed properties (for which explicit examples might be difficult to find), simply by observing that the probability of randomly selecting an object with those properties is greater than 0. This approach (often referred to as the probabilistic method) proved highly effective in applications to extremal combinatorics and graph theory. A closely related area is the study of finite Markov chains, especially on combinatorial objects. Here again probabilistic tools are used to estimate the mixing time.
+Often associated with Paul Erd?s, who did the pioneer work on the subject, probabilistic combinatorics was traditionally viewed as a set of tools to study problems in other parts of combinatorics. However, with the growth of applications to analysis of algorithms in computer science, as well as classical probability, additive and probabilistic number theory, the area recently grew to become an independent field of combinatorics.</textarea>
+<span style="background-color:#5C61FF;"><span style="background-color:rgb(51, 204, 255);">dolor</span></span>
+<input id="actionbutton" type="button" value="action" onclick="action()"/>
+<div>
+    <input id="wordTag" />
+    <input id="submitbutton" type="button" value="submit"/>
+</div>
+<div id="contentarea"></div>
+<div id="resultarea"></div></body>
+</html>

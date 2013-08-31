@@ -1,0 +1,80 @@
+<html>
+<head>
+<script type="text/javascript" src="porterstemmer.js"></script>
+<script type="text/javascript" src="utils.js"></script>
+<script type="text/javascript" src="jquery-1.7.1.js"></script>
+<script type="text/javascript" src="apache.jquery.couch.js"></script>
+<script type="text/javascript" src="engrow.js"></script>
+<style type="text/css">
+	.crumbs{
+		width: 200px;
+	}
+
+	#wordInfo{
+		position:absolute;
+		margin-left:300px;
+	}
+	#crumbs div{
+		margin-right: 5px;
+		float: left;
+		font-family:  "calibri", Garamond, 'Comic Sans';
+		font-size:14pt; 
+		font-style:italic
+	}
+</style>
+<script type="text/javascript">
+	NO_WTI = false;
+	_methoder.namespace(M_CRUMBS_DLOAD,
+		function(dWords){
+			for(var i in dWords){
+				var elmt = document.createElement('div');
+				elmt.innerText = dWords[i];
+				document.getElementById('crumbs').appendChild(elmt);
+			}
+
+		}
+	);
+	_methoder.namespace(M_CRUMBS_RDOCS,
+		function(docsList){
+			document.querySelector("#docs ol").innerHTML = '';
+			var totalCount = docsList.length;
+			for(var i = totalCount - 1;i >= 0;--i){
+				var elmt = document.createElement("li");
+				elmt.innerText = docsList[i].doc.doc_title;
+				document.querySelector("#docs ol").appendChild(elmt);
+			}			
+
+		}
+	);
+</script>
+</head>
+<body>
+	<div id="crumbs" class="crumbs">
+		<input type='button' value="more" onclick="_couchDb.getCrumbs();"/>
+	</div>
+	<div id="wordInfo">
+		<input type="input" id="word"/><input id="find" type="button" value="find"/>
+		<div id="cnt"></div>
+		<div id="docs">
+			<ol>
+
+			</ol>
+		</div>
+	</div>
+	<script type="text/javascript">
+		document.querySelector('#find').addEventListener('click',
+			function(event){
+				document.querySelector("#cnt").innerHTML = '';
+				var word = document.querySelector("#word").value;
+				var root = stemmer(word);
+				var info = tagsInfo[root];
+
+				for(var word in tagsInfo[root])
+					document.querySelector("#cnt").innerText += tagsInfo[root][word];
+				_couchDb.getWordInfo(word);
+			}
+		);
+
+	</script>
+</body>
+</html>

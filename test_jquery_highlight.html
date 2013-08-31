@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript" src="jquery.myhighlight-3.js"></script>
+<style>
+.highlight {
+    background-color: yellow;
+}
+</style>
+</head>
+<body>
+ 
+<div id="row">
+    <div>
+        <a class="fullname" href="#"><span class="lastname">Goog</span>, <span class="firstname">Billy</span></a>
+        <div id="remove">ServIcE: (click me to remove all highlight)</div>
+        <div><span class="section">Pig &amp; Sheep Serv</span>, <span class="department">Cow Administration &amp; Management</span></div>
+        <div class="org">Trade Administration, Administration Services</div>
+        <div id="email">
+            <a class="email" href="mailto:a@abc.com">a@abc.com</a>
+        </div>
+    </div>
+</div>
+ 
+<script type="text/javascript">
+    $(function() {
+        $("#row").highlight("\\bservice\\b","rgb(51, 204, 255)");
+        $(".lastname").highlight("o","rgb(51, 204, 255)");
+        $(".section").highlight(/g.*ep/i,"rgb(51, 204, 255)");
+        $(".department").highlight(/.*/i,"rgb(51, 204, 255)");
+        $(".org").highlight(/adm.*(?=, )/i,"rgb(51, 204, 255)");
+        $("#email").highlight(/a.c\./,"rgb(51, 204, 255)");
+        $("#remove").click(function() {$("#row").removeHighlight("\\badministration\\b");});
+    });
+</script>
+ 
+</body>
+</html>

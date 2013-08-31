@@ -1,0 +1,86 @@
+<html>
+<head>
+	<script type="text/javascript">
+		function loadjscssfile(filename,filetype){if(filetype=="js"){var fileref=document.createElement('script');fileref.setAttribute("type","text/javascript");fileref.setAttribute("src",filename)}else if(filetype=="css"){var fileref=document.createElement("link");fileref.setAttribute("rel","stylesheet");fileref.setAttribute("type","text/css");fileref.setAttribute("href",filename)}if(typeof fileref!="undefined")document.getElementsByTagName("head")[0].appendChild(fileref)}
+var l = ['1','2','3'];
+
+l=l.reduce(
+	function(p,c,i,a){
+		if(i == 1){if(p.indexOf('!') == -1)p=[p];else p=[];this.d={};}
+		if(c.indexOf('!') == 0){
+			c=c.substring(1);
+			var n = (pi = p.indexOf(c))>=0 ? 1 : 0;
+			p.splice(pi,n);
+		}
+		else if(!this.d[c])p.push(c);
+		this.d[c]=1;
+		return p;
+	}
+);
+function ajaxReq(url){
+	var xhReq = new XMLHttpRequest();
+	xhReq.open("GET", url, false);
+	xhReq.send(null);
+	return xhReq.responseText;
+}
+var regList = [
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)(.*)Shot: (Missed|Made\\s\\(.*PTS\\))(?:$|.*:)?(\\s[a-zA-Z]+)?",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\s(?:Rebound\\s\\(Off:(\\d)\\sDef:(\\d)\\)|Rebound)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sFree Throw\\s(\\d{1})\\sof\\s\\d{1}(\\sMissed|)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sSubstitution replaced by\\s([^\\s]+)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sFoul:([\\s\\w]+)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sEjection:([\\s\\w]+)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sTurnover\\s:([\\w\\s]+\\s\\(.*TO\\)|[a-zA-Z\\s]+)?(?:\\sSteal:)?([a-zA-Z]+)?",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\sViolation:([\\sa-zA-Z]+)",
+	"(\\d*:\\d*\\.?\\d*)[\\s]+\\[(.*)\\]\\s([^\\s]+)\\s(?:Technical)"
+];
+var unexcept = [];
+var dict={};
+var urlScheme = "http://mi.nba.com/statsm/wap/game/playByPlay.xhtml?gameId=_ID_&pbpOnlyPeriod=";
+var gameId = '0021201177'/*'0041200407'*/;
+var regexp = new RegExp();
+urlScheme = urlScheme.replace('_ID_',gameId);
+
+function check(){
+	for(var i = 1; i <= 4;++i){
+		var url  = urlScheme + i.toString();
+		var html = ajaxReq(url);
+		var doc = document.open("text/html","replace");
+		doc.write(html);
+  		doc.close();
+  		var text = document.querySelector('.play_by_play_events').innerText;
+		for(var j in regList){
+			regexp.compile(regList[j],'gi');
+			var match;
+			while(match = regexp.exec(text)){
+				if(!dict[match])dict[match] = 1;
+			}
+		}
+		var events = document.querySelectorAll('.event');
+		console.log(events.length);
+		for(var index in events){
+			if(events[index].innerText){
+				var play = events[index].innerText.trim();
+				unexcept.push(play);
+				for(var rIndex in regList){
+					regexp.compile(regList[rIndex],'gi');
+					if(regexp.test(play)){
+						//unexcept.splice(unexcept.indexOf(play),1);
+						unexcept.pop();
+						debugger;
+						break;
+					}
+				}
+				//if(!dict[play])unexcept.push(play);
+			}
+		}
+
+
+	}
+}
+
+console.log(l);
+	</script>
+</head>
+<body></body>
+</html>

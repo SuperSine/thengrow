@@ -1,0 +1,136 @@
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="ui.css">
+<script type="text/javascript" src="porterstemmer.js"></script>
+<script type="text/javascript" src="utils.js"></script>
+<script type="text/javascript" src="jquery-1.7.1.js"></script>
+<script type="text/javascript" src="jquery.myhighlight-3.js"></script>
+<script type="text/javascript" src="jquery.shortcuts.js"></script>
+<script type="text/javascript" src="apache.jquery.couch.js"></script>
+<script type="text/javascript" src="engrow.js"></script>
+<script type="text/javascript" src="md5.js"></script>
+<script type="text/javascript" src="ui.js"></script>
+<script type="text/javascript" src="yui-min.js"></script>
+<script type="text/javascript">
+	//NO_WTI = true;
+/*
+	function init_contextmenu(tag_info_by_name){
+		var menu = ui.menu();
+		for(var i in tag_info_by_name){
+			menu.add(i,function(){
+				(function())
+			});
+			tag_info_by_name[i] 
+		}
+	}
+*/
+	var ENABLE_CONTEXT_MENU = false;
+
+	Highlighter.prototype.ContentArea = 'contentarea';
+
+	function stripHtml(html){
+		var regex = /(<([^>]+)>|&(nbsp|amp|quot|lt|gt))/gi;
+		return html.replace(regex," ");
+	}
+
+	Doctor.prototype.getContent = function(){
+		return stripHtml($("#contentarea").html());
+	}
+
+	Doctor.prototype.getContentTitle = function(){
+		return document.getElementById("content_title").value;
+	}
+
+	Doctor.prototype.getContentView = function(){
+		return $("#"+contentarea).html();
+	}
+
+	Doctor.prototype.getContntCate = function(){
+		return document.getElementById("content_cate").value;
+	}
+
+	Doctor.prototype.getContentFingerPrint = function(){
+		return md5(JSON.stringify(this.wordArray));
+	}
+
+	action = actionEx;
+
+	
+
+	Highlighter.prototype.highlight = function (highlights,tag,id){
+		if(highlights.length == 0)return;
+		if(typeof(highlights) == 'undefined'){
+			$("#"+this.ContentArea).removeAllHighlight();
+			return;
+		}
+		var color = this.getColor(tag);
+		var pattern = "\\b("+highlights.join('|')+")\\b";
+		if(color != null)
+			$("#"+this.ContentArea).highlight(pattern,color,id);
+		else
+			$("#"+this.ContentArea).removeHighlight(pattern,id);	
+	};
+
+	$(document).ready(function(){
+		init_shortcuts();
+		var menu = ui.menu()
+		.add('Update',function(){saveEx();})
+		.add('Edit item', function(e){ console.log(e); })
+		.add('Remove item', function(){ console.log('remove'); })
+		.add('Remove "Add item"', function(){
+		  menu
+		    .remove('Add item')
+		    .remove('Remove "Add item"');
+		});
+
+		menu.on('Add item', function(){
+		  console.log('item added');
+		});
+
+		oncontextmenu = function(e){
+		  if(!ENABLE_CONTEXT_MENU)return;
+		  e.preventDefault();
+		  menu.moveTo(e.pageX, e.pageY).show();
+		};		
+	});
+</script>
+
+<style type="text/css">
+.container { border:2px solid #ccc; width:300px; height: 100px; overflow-y: scroll; }
+</style>
+
+</head>
+<body>
+<div>
+	<input id="content_title" value="">
+	<input id="content_cate" value="">
+	<input class="btn" id="actionbutton" type="button" value="action"/>
+	<input class="btn1" type="button" value="action"/>
+</div>
+
+<div style="display:none;">
+	<input id="wordTag" value="In:1" />
+	<input id="submitbutton" type="button" value="submit" onclick="applyTag()"/ >
+	<input id="removeTag" value="In:1" />
+	<input id="submitRemove" type="button" value="remove"/ >	
+	<input id="delTag" value="1" />
+	<input id="submitDel" type="button" value="del" onclick="delTag()"/ >	
+	<input id="tagColor" value="1:#BA70FF;2:#B0CC49;3:#E3AF78;4:#5C4545"/>
+	
+	<div>
+		<input id="highlightsTags"/>
+		<input id="highlight" type="button" value="highlight"/>
+		<input id="assignTags"/>
+		<input id="auto-classify" />
+		<input id="commitAssign" type="button" value="mark"/>
+	</div>
+	<input id="updateTag" type="button" value="update" onclick="updateTagResult()"/>
+	<input id="saveTagInfo" type="button" value="save"/>
+	<input id="clearTagInfo" type="button" value="clear"/>
+	<input id="outputTagInfo" type="button" value="output"/>
+</div>
+<div id="contentarea" contenteditable="true" spellcheck="false"></div>
+<div id="resultarea"></div>
+<div id="content_dict_area"></div></body>
+</html>

@@ -1,0 +1,119 @@
+<html>
+<head>
+<script type="text/javascript" src="porterstemmer.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript" src="jquery.myhighlight-3.js"></script>
+<script type="text/javascript">
+var wordInfoDict = {};
+var wordTag = {};
+var tagColor=[];
+function action() {
+    
+
+    var info = {};
+	
+    var content = document.getElementById("content").value;
+    var re = /--{1,}|[^a-zA-Z'-]/ig;
+    var wordArray = content.replace(re, " ").split(" ");
+	document.getElementById("contentarea").innerHTML = content;
+	
+    for (var i = 0; i < wordArray.length;++i) {
+        var word = wordArray[i];
+        if(word.length <=1 || word.length>=50)continue;
+        var root = stemmer(word);
+        if (wordInfoDict[root] != undefined) {
+            if (wordInfoDict[root][word] != undefined){ 
+				wordInfoDict[root][word] += 1;
+            }else {
+				wordInfoDict[root][word] = 1;
+			}
+        } else {
+            wordInfoDict[root]={};
+            wordInfoDict[root][word]=1;
+            wordTag[root] = [0];
+        }
+        wordTag[root][0]+=1
+    }
+    document.getElementById("resultarea").innerHTML = JSON.stringify(wordTag);
+	loadTagColor();
+}
+function toHex(n) {
+ n = parseInt(n,10);
+ if (isNaN(n)) return "00";
+ n = Math.max(0,Math.min(n,255));
+ return "0123456789ABCDEF".charAt((n-n%16)/16)
+      + "0123456789ABCDEF".charAt(n%16);
+}
+function hexToC(hex,s){
+	return parseInt((cutHex(hex)).substring(s,2),16).toString();
+}
+function cutHex(h) {return (h.charAt(0)=="#") ? h.substring(1,7):h}
+function markWord(root,tagColor){
+	words=wordInfoDict[root];
+	if(words==undefined)return;
+	for(var word in words){
+		if(!words.hasOwnProperty(word))continue;
+		$("#contentarea").highlight("\\b"+word+"\\b",tagColor);
+		
+	}
+	
+	
+}
+function getTagColor(tag){
+	for(var i=0;i<tagColor.length;++i){
+		codes=tagColor[i].split(":");
+		if(codes[0] == tag)return codes[1];
+	}
+}
+function loadTagColor(){
+	colorArray = $("#tagColor").val().split(";");
+	for(var i=0;i < colorArray.length;++i){
+		tagColor[i]=colorArray[i];
+	}
+}
+function hasTag(body,tag){
+	if(body == undefined || body == "")return false;
+	main=body.substring(body.indexOf('#'),body.length);
+	return main.indexOf(tag) % 2 == 0 ? true : false;
+}
+function setTag(body,tag){
+	if(hasTag(body,tag))return body;
+	return body+tag;
+}
+function applyTag(){
+	c=document.getElementById("wordTag").value
+	tag=c.split(':')[1];
+	root=stemmer(c.split(':')[0]);
+	tag=toHex(tag);
+	if(wordTag[root] == undefined )wordTag[root]=[];
+	old=wordTag[root][1];
+	if(old==undefined)old="";
+	wordTag[root][1]=setTag(old,tag);
+	
+	tag=hexToC(tag,0);
+	color=getTagColor(tag);
+	markWord(root,color);
+}
+function updateTagResult(){
+	document.getElementById("resultarea").innerHTML = JSON.stringify(wordTag);
+    document.getElementById("content_dict_area").innerHTML = 
+                                        "<p></p>"+JSON.stringify(wordInfoDict);
+}
+//addEventListener("click", action, false);
+//alert("fuck");
+</script>
+</head>
+<body>
+<textarea id="content">This Australian Open has suddenly taken on a new dimension. Bernard Tomic, the Australian teenager with the shots to match his ego, has catapulted himself to the forefront of tennis as he prepares for a dream match against the only player he can be bothered watching, Roger Federer, and there is even a suspicion outside the player's unwavering self-belief that he can do something special when they meet in the fourth round on Sunday.</textarea>
+<span style="background-color:#5C61FF;"><span style="background-color:rgb(51, 204, 255);">dolor</span></span>
+<input id="actionbutton" type="button" value="action" onclick="action()"/>
+<div>
+	<input id="wordTag" value="In:1" />
+	<input id="submitbutton" type="button" value="submit" onclick="applyTag()"/ >
+	<input id="tagColor" value="1:#BA70FF;2:#B0CC49;3:#E3AF78"/>
+	<input id="updateTag" type="button" value="update" onclick="updateTagResult()"/>
+</div>
+<div id="contentarea"></div>
+<div id="resultarea"></div>
+<div id="content_dict_area"></div></body>
+</html>
