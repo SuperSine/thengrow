@@ -11,6 +11,7 @@
 <script type="text/javascript">
 	NO_WTI = false;
 	M_DOCS_LOAD = 'doc/load';
+	var reader_url = "getstarted (3).html";
 
 	_methoder.namespace(M_CRUMBS_DLOAD,
 		function(dWords){
@@ -58,6 +59,12 @@
 		for(var i in docsList){
 			var elmt = document.createElement('div');
 			elmt.innerHTML = docsList[i]['value']['title'];
+			elmt.setAttribute('id',docsList[i]['value']['id']);
+			elmt.addEventListener('click',function(event){
+				var id = event.currentTarget.getAttribute('id');
+				localStorage.setItem('engrow_id',id);
+				window.open(reader_url);
+			});
 			document.getElementById('cnt').appendChild(elmt);
 		}
 		
@@ -85,7 +92,8 @@
 				if(value == 'doc:'){
 					var view = 'docs/by_doc_ids';
 					var options = {
-						'descending':true,
+						'group':true,
+						'group_level':2,
 						success:function(data){
 							_methoder.namespace(M_DOCS_LOAD).run(data.rows);
 						}

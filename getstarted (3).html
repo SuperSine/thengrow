@@ -72,27 +72,22 @@
 			$("#"+this.ContentArea).removeHighlight(pattern,id);	
 	};
 
-	$(document).ready(function(){
-		init_shortcuts();
-		var menu = ui.menu()
-		.add('Update',function(){saveEx();})
-		.add('Edit item', function(e){ console.log(e); })
-		.add('Remove item', function(){ console.log('remove'); })
-		.add('Remove "Add item"', function(){
-		  menu
-		    .remove('Add item')
-		    .remove('Remove "Add item"');
+	function getDocumentById(id){
+		_couchDb.db().openDoc(id,
+		{
+			success:function(data){
+				if(data.doc[0]){
+					var html = data.doc[0].doc_html;
+					$('#'+Highlighter.prototype.ContentArea).html(html);
+				}
+			}
 		});
-
-		menu.on('Add item', function(){
-		  console.log('item added');
-		});
-
-		oncontextmenu = function(e){
-		  if(!ENABLE_CONTEXT_MENU)return;
-		  e.preventDefault();
-		  menu.moveTo(e.pageX, e.pageY).show();
-		};		
+	}
+	$("#"+Highlighter.prototype.ContentArea).live('DOMSubtreeModified',function(){
+		if(typeof(this.initial) != 'undefined')return;
+		this.initial = 1;
+	
+		action();
 	});
 </script>
 
@@ -133,4 +128,38 @@
 <div id="contentarea" contenteditable="true" spellcheck="false"></div>
 <div id="resultarea"></div>
 <div id="content_dict_area"></div></body>
+<script type="text/javascript">
+	$(document).ready(function(){
+		init_shortcuts();
+		var menu = ui.menu()
+		.add('Update',function(){saveEx();})
+		.add('Edit item', function(e){ console.log(e); })
+		.add('Remove item', function(){ console.log('remove'); })
+		.add('Remove "Add item"', function(){
+		  menu
+		    .remove('Add item')
+		    .remove('Remove "Add item"');
+		});
+
+		menu.on('Add item', function(){
+		  console.log('item added');
+		});
+
+		oncontextmenu = function(e){
+		  if(!ENABLE_CONTEXT_MENU)return;
+		  e.preventDefault();
+		  menu.moveTo(e.pageX, e.pageY).show();
+		};		
+
+		var id = localStorage.getItem('engrow_id');
+
+		if(id){
+			getDocumentById(id);
+			localStorage.removeItem('engrow_id');
+
+		}
+
+
+	});
+</script>
 </html>

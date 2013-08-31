@@ -107,6 +107,10 @@ function CouchDb(url){
 		});
 	}
 
+	this.db = function(){
+		return this.getInstance().db(this._wti_db_name);
+	}
+
 	this.uploadWti = function(word_tag_info){
 		var rData;
 		this.getInstance().db(this._wti_db_name).saveDoc(
@@ -256,7 +260,8 @@ function CouchDb(url){
 		this.getInstance().db(this._doc_db_name).view(
 			'docs/by_doc_ids',
 			{
-				'key':id,
+				'startkey':[id],
+				'endkey':[id,{}],
 				success:function(data){
 					console.log(data);
 					if(data.rows.length >= 1){
@@ -1490,7 +1495,7 @@ function actionEx(){
 	tagger = new Tagger(wi,stemmer,gc);
 	tagger_del = new Tagger(wi_del,stemmer,gc);	
 	_couchDb.isDocExists(doctor.getContentFingerPrint());
-
+	_couchDb.getTags();
 	/*highlighter = new Highlighter(tag_colors);*/
 	
 }
@@ -1918,12 +1923,5 @@ $(document).ready(function(){
 		var tags = $("#highlightsTags").val().split(',');
 		highlightBy(tags);
 	});
-	$("#"+contentarea).live('DOMSubtreeModified',function(){
-		if(typeof(this.initial) != 'undefined')return;
-		this.initial = 1;
-	
-		/*action();*/
-	});
-
 	
 });

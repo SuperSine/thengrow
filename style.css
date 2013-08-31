@@ -39,6 +39,7 @@ body {
 }
 
 #contentarea {
+margin: 30px auto;
 	width: 800px;
 	padding: 20px 60px;
 	border: 1px solid #D2D2D2;
