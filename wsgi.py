@@ -176,6 +176,22 @@ def registration(user_name,pwd,e_mail,model):
 
 	return result
 
+def login(usr,pwd,model):
+	sha = hashlib.sha1()
+	sha.update(pwd)
+
+	options = {}
+	options['username'] = usr
+	options['password'] = sha.hexdigest()
+	options['_LOGIC']  = 'AND'
+
+	rows = model.select(options=options)
+
+	if rows :
+		return true
+	return false
+
+
 def create_tag(tag_name,tag_color,uid,model):
 	tagids = short_text(tag_name+uid)
 	options = {
