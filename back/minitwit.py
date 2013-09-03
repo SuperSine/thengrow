@@ -8,7 +8,9 @@
     :copyright: (c) 2010 by Armin Ronacher.
     :license: BSD, see LICENSE for more details.
 """
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time
 from sqlite3 import dbapi2 as sqlite3
 from hashlib import md5
@@ -16,7 +18,7 @@ from datetime import datetime
 from flask import Flask, request, session, url_for, redirect, \
      render_template, abort, g, flash, _app_ctx_stack
 from werkzeug import check_password_hash, generate_password_hash
-
+from simplemodel import *
 
 # configuration
 DATABASE = 'minitwit.db'
@@ -85,6 +87,7 @@ def gravatar_url(email, size=80):
 
 @app.before_request
 def before_request():
+    dump(session['user_id'])
     g.user = None
     if 'user_id' in session:
         g.user = query_db('select * from user where user_id = ?',
@@ -99,6 +102,20 @@ def timeline():
     """
     if not g.user:
         return redirect(url_for('public_timeline'))
+    model = SimpleModel(get_db())
+
+    qry1 = model.select(options={'whom_id':session['user_id']},fields='whom_id',
+                        table_name='follower')
+
+    options = {}
+    options['message.author_id'] = 'user.user_id'
+    options['user.user_id'] = [['=',session['user_id']],
+                                ['in',"(%s)" % qry1],'or']
+    qry2 = model.select(options=options,fields='message.*,user.*',
+                orderby='message.pub_date desc',limit=PER_PAGE,
+                table_name='message,user')
+    print qry2
+    exit()
     return render_template('timeline.html', messages=query_db('''
         select message.*, user.* from message, user
         where message.author_id = user.user_id and (

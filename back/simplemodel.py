@@ -1,4 +1,4 @@
-class Model:
+class SimpleModel:
 	def __init__(self,db,table_name = ''):
 		self._db = db
 		self._table_name = table_name
@@ -58,18 +58,23 @@ class Model:
 
 		return where	
 
-	def select(self,options={},fields='*',table_name=''):
+	def select(self,options={},fields='*',orderby='',groupby='',table_name='',
+				limit=''):
 		logic = ''
 
 		table_name = self._getTableName(table_name)
 		where = self._where(options)
 	    
 		qry = "SELECT %s FROM %s WHERE %s" % (fields,table_name,where)
-		cur = self._db.cursor()
-		cur.execute(qry)
-		result = cur.fetchall()
-		cur.close()
-		return result
+
+		if groupby:
+			qry = qry + (" GROUP BY %s" % groupby)
+		if orderby:
+			qry = qry + (" ORDER BY %s" % orderby)
+		if limit:
+			qry = qry + (" limit %s" % limit)
+
+		return qry
 
 
 	def insert(self,dataArray,table_name=''):
@@ -78,11 +83,8 @@ class Model:
 		fields = ' , '.join(dataArray.keys())
 		values = ' , '.join([exp(value) for value in dataArray.values()])
 		qry = "INSERT INTO %s (%s) VALUES (%s)" % (table_name,fields,values)
-		cur = self._db.cursor()
-		result = cur.execute(qry)
-		self._db.commit()
-		cur.close()
-		return result
+
+		return qry
 
 	def update(self,dataArray,options,table_name=''):
 		qry = "UPDATE %s SET %s WHERE %s"
