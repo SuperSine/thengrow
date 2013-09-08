@@ -145,6 +145,8 @@ def user_timeline(username):
         followed = Follower.select(Follower.who,Follower.whom).where(Follower.who == session['user_id'] & Follower.whom == profile_user.user).exists()
         followed = followed is not None
         messages = Message.select(Message,User).join(User,on=(Message.author == User.user)).order_by(Message.pub_date.desc()).limit(PER_PAGE).execute()
+    else:
+        return redirect(url_for('login'))
     return render_template('timeline.html', messages=messages, followed=followed,
             profile_user=profile_user)
 
