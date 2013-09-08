@@ -19,6 +19,7 @@ from flask import Flask, request, session, url_for, redirect, \
      render_template, abort, g, flash, _app_ctx_stack
 from werkzeug import check_password_hash, generate_password_hash
 from simplemodel import *
+from mymodels import *
 
 # configuration
 DATABASE = 'minitwit.db'
@@ -53,11 +54,15 @@ def close_database(exception):
 
 def init_db():
     """Creates the database tables."""
-    with app.app_context():
-        db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
+    if User.table_exists() == False:
+        User.create_table()
+        Message.create_table()
+        Follower.create_table()
+        """
+        with app.open_resource(schema, mode='r') as f:
             db.cursor().executescript(f.read())
         db.commit()
+        """
 
 
 def query_db(query, args=(), one=False):
@@ -69,9 +74,11 @@ def query_db(query, args=(), one=False):
 
 def get_user_id(username):
     """Convenience method to look up the id for a username."""
-    rv = query_db('select user_id from user where username = ?',
-                  [username], one=True)
-    return rv[0] if rv else None
+    try:
+        rv = User.select().where(User.username == username).get()
+    except User.DoesNotExist:
+        rv = None
+    return rv
 
 
 def format_datetime(timestamp):
@@ -87,12 +94,18 @@ def gravatar_url(email, size=80):
 
 @app.before_request
 def before_request():
-    dump(session['user_id'])
+    top = _app_ctx_stack.top
+
+    if not hasattr(top, 'db_connection'):
+        database.connect()
+        top.db_connection = database
+
     g.user = None
     if 'user_id' in session:
-        g.user = query_db('select * from user where user_id = ?',
-                          [session['user_id']], one=True)
-
+        try:
+            g.user = User.select().where(User.user == session['user_id']).get()
+        except User.DoesNotExist:
+            g.user = None
 
 @app.route('/')
 def timeline():
@@ -102,57 +115,37 @@ def timeline():
     """
     if not g.user:
         return redirect(url_for('public_timeline'))
-    model = SimpleModel(get_db())
 
-    qry1 = model.select(options={'whom_id':session['user_id']},fields='whom_id',
-                        table_name='follower')
-
-    options = {}
-    options['message.author_id'] = 'user.user_id'
-    options['user.user_id'] = [['=',session['user_id']],
-                                ['in',"(%s)" % qry1],'or']
-    qry2 = model.select(options=options,fields='message.*,user.*',
-                orderby='message.pub_date desc',limit=PER_PAGE,
-                table_name='message,user')
-    print qry2
-    exit()
-    return render_template('timeline.html', messages=query_db('''
-        select message.*, user.* from message, user
-        where message.author_id = user.user_id and (
-            user.user_id = ? or
-            user.user_id in (select whom_id from follower
-                                    where who_id = ?))
-        order by message.pub_date desc limit ?''',
-        [session['user_id'], session['user_id'], PER_PAGE]))
+    subquery = Follower.select(Follower.whom).where(Follower.who == session['user_id'])
+    messages = Message.select(Message,User).join(User,on=(Message.author == User.user)).where(User.user == session['user_id'] | User.user << subquery).execute()
+    return render_template('timeline.html', messages=messages)
 
 
 @app.route('/public')
 def public_timeline():
     """Displays the latest messages of all users."""
-    return render_template('timeline.html', messages=query_db('''
-        select message.*, user.* from message, user
-        where message.author_id = user.user_id
-        order by message.pub_date desc limit ?''', [PER_PAGE]))
+    messages = Message.select(User,Message).\
+                    join(User,on=(Message.author == User.user)).\
+                        order_by(Message.pub_date.desc()).limit(PER_PAGE).execute()
+    return render_template('timeline.html', messages=messages)
 
 
 @app.route('/<username>')
 def user_timeline(username):
     """Display's a users tweets."""
-    profile_user = query_db('select * from user where username = ?',
-                            [username], one=True)
+    try:
+        profile_user = User.select().where(User.username == username).get()
+    except User.DoesNotExist:
+        profile_user = None
+
     if profile_user is None:
         abort(404)
     followed = False
     if g.user:
-        followed = query_db('''select 1 from follower where
-            follower.who_id = ? and follower.whom_id = ?''',
-            [session['user_id'], profile_user['user_id']],
-            one=True) is not None
-    return render_template('timeline.html', messages=query_db('''
-            select message.*, user.* from message, user where
-            user.user_id = message.author_id and user.user_id = ?
-            order by message.pub_date desc limit ?''',
-            [profile_user['user_id'], PER_PAGE]), followed=followed,
+        followed = Follower.select(Follower.who,Follower.whom).where(Follower.who == session['user_id'] & Follower.whom == profile_user.user).exists()
+        followed = followed is not None
+        messages = Message.select(Message,User).join(User,on=(Message.author == User.user)).order_by(Message.pub_date.desc()).limit(PER_PAGE).execute()
+    return render_template('timeline.html', messages=messages, followed=followed,
             profile_user=profile_user)
 
 
@@ -164,10 +157,9 @@ def follow_user(username):
     whom_id = get_user_id(username)
     if whom_id is None:
         abort(404)
-    db = get_db()
-    db.execute('insert into follower (who_id, whom_id) values (?, ?)',
-              [session['user_id'], whom_id])
-    db.commit()
+
+    Follower.create(who=session['user_id'],whom=whom_id)
+
     flash('You are now following "%s"' % username)
     return redirect(url_for('user_timeline', username=username))
 
@@ -180,10 +172,9 @@ def unfollow_user(username):
     whom_id = get_user_id(username)
     if whom_id is None:
         abort(404)
-    db = get_db()
-    db.execute('delete from follower where who_id=? and whom_id=?',
-              [session['user_id'], whom_id])
-    db.commit()
+
+    Follower.delete().where(Follower.who == session['user_id'] & Follower.whom == whom_id).execute()
+
     flash('You are no longer following "%s"' % username)
     return redirect(url_for('user_timeline', username=username))
 
@@ -194,11 +185,15 @@ def add_message():
     if 'user_id' not in session:
         abort(401)
     if request.form['text']:
+        Message.create(author=session['user_id'],text=request.form['text'],
+                        pub_date=int(time.time()))
+        """
         db = get_db()
         db.execute('''insert into message (author_id, text, pub_date)
           values (?, ?, ?)''', (session['user_id'], request.form['text'],
                                 int(time.time())))
         db.commit()
+        """
         flash('Your message was recorded')
     return redirect(url_for('timeline'))
 
@@ -210,17 +205,24 @@ def login():
         return redirect(url_for('timeline'))
     error = None
     if request.method == 'POST':
-        user = query_db('''select * from user where
-            username = ?''', [request.form['username']], one=True)
+        try:
+            user = User.select() \
+                       .where(User.username == request.form['username']).get()
+        except User.DoesNotExist:
+            user = None
+        flash(user)
+        #user = query_db('''select * from user where
+        #    username = ?''', [request.form['username']], one=True)
+        flash(request.form['password'])
         if user is None:
             error = 'Invalid username'
-        elif not check_password_hash(user['pw_hash'],
+        elif not check_password_hash(user.pw_hash,
                                      request.form['password']):
             error = 'Invalid password'
         else:
             flash('You were logged in')
-            session['user_id'] = user['user_id']
-            return redirect(url_for('timeline'))
+            session['user_id'] = user.user
+           # return redirect(url_for('timeline'))
     return render_template('login.html', error=error)
 
 
@@ -243,12 +245,8 @@ def register():
         elif get_user_id(request.form['username']) is not None:
             error = 'The username is already taken'
         else:
-            db = get_db()
-            db.execute('''insert into user (
-              username, email, pw_hash) values (?, ?, ?)''',
-              [request.form['username'], request.form['email'],
-               generate_password_hash(request.form['password'])])
-            db.commit()
+            User.create(username=request.form['username'],email=request.form['email'],pw_hash=generate_password_hash(request.form['password']))
+
             flash('You were successfully registered and can login now')
             return redirect(url_for('login'))
     return render_template('register.html', error=error)
