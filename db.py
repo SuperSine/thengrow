@@ -7,6 +7,26 @@ import urllib2
 from base64 import b64encode
 import urlparse
 import urllib
+import re
+
+class DataReviser:
+    def __init__():
+        self.dict = {}
+
+    def setPair(key,func):
+        if self.dict.has_key(key):
+            return
+        self.dict[key] = func
+
+    def revise(key,data):
+        for dKey,dValue in self.dict:
+            match = re.search(dKey,key)
+            if match is None:continue
+            data = self.dict[dKey](data)
+        return data
+
+
+
 
 class Couch:
     """Basic wrapper class for operations on a couchDB"""
