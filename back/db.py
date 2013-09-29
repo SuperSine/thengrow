@@ -8,18 +8,6 @@ from base64 import b64encode
 import urlparse
 import urllib
 import re
-import json
-
-
-def setRangeKey():
-    return
-
-def setUserId(body,uid):
-    if type(body) is str:
-        body = json.loads(body)
-    if body.has_key('_user_id') == False:
-        body['_user_id'] = uid
-    return body
 
 class DataReviser:
     def __init__():

@@ -114,7 +114,7 @@ Methoder.defineMethod = function(defineClass,funct){
 }
 
 function CouchDb(url){
-	$.couch.urlPrefix = (url ? url:"http://127.0.0.1/engrow/db.py");
+	$.couch.urlPrefix = (url ? url:"http://127.0.0.1:5000/db");
 	//$.couch.urlPrefix = (url ? url:"http://sre.cloudant.com");
 
 	this._wti_db_name = "engrow";
@@ -165,7 +165,7 @@ function CouchDb(url){
 	this.mergeWti = function(word_tag_info_1,word_tag_info_2,doc){
 		this.getInstance().db(this._wti_db_name).updateDoc(
 			"trigger/mergeEx",
-			WTI_KEY,
+			WTI_KEY ? WTI_KEY : "",
 			{
 				'word_tag_info_1':word_tag_info_1 ? JSON.stringify(word_tag_info_1) : '',
 				'word_tag_info_2':word_tag_info_2 ? JSON.stringify(word_tag_info_2) : '',

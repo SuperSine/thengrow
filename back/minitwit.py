@@ -16,10 +16,13 @@ from sqlite3 import dbapi2 as sqlite3
 from hashlib import md5
 from datetime import datetime
 from flask import Flask, request, session, url_for, redirect, \
-     render_template, abort, g, flash, _app_ctx_stack
+     render_template, abort, g, flash, _app_ctx_stack,make_response
 from werkzeug import check_password_hash, generate_password_hash
 from simplemodel import *
 from mymodels import *
+from werkzeug.wsgi import DispatcherMiddleware,pop_path_info
+from db import *
+import hashlib
 
 # configuration
 DATABASE = 'minitwit.db'
@@ -31,7 +34,7 @@ SECRET_KEY = 'development key'
 app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_envvar('MINITWIT_SETTINGS', silent=True)
-
+app.config.update(SECRET_KEY = SECRET_KEY)
 
 def get_db():
     """Opens a new database connection if there is none yet for the
@@ -107,6 +110,36 @@ def before_request():
         except User.DoesNotExist:
             g.user = None
 
+@app.route('/db', defaults={'path': ''})
+@app.route('/<path:path>',methods=['POST','GET'])
+def db(path):
+    headers = {'Content-type':'text/json',
+            'Cache-Control':'no-cache, no-store, max-age=0, must-revalidate'}
+    if g.user:
+        pop_path_info(request.environ)
+        status = '200 OK'
+        environ = request.environ
+        method = environ.get('REQUEST_METHOD')
+        path = environ.get('PATH_INFO')
+        query = environ.get('QUERY_STRING')
+        body= ''  # b'' for consistency on Python 3.0 
+        couch = Couch('sre.cloudant.com')
+
+        try:
+            length= int(environ.get('CONTENT_LENGTH', '0'))
+        except ValueError:
+            length = 0
+        if length != 0:
+            body = environ['wsgi.input'].read(length)
+        return repr(type(body))
+        r = couch.send(method,path + '?' + query,body)
+        status = "%s %s" % (r.status,r.reason)
+        response = r.read()
+    else:
+        response = 'need log in to procee operation'
+        status = '200 OK'
+    return make_response(response,status,headers)
+
 @app.route('/')
 def timeline():
     """Shows a users timeline or if no user is logged in it will
@@ -123,13 +156,14 @@ def timeline():
 
 @app.route('/public')
 def public_timeline():
+    
+    
     """Displays the latest messages of all users."""
     messages = Message.select(User,Message).\
                     join(User,on=(Message.author == User.user)).\
                         order_by(Message.pub_date.desc()).limit(PER_PAGE).execute()
     return render_template('timeline.html', messages=messages)
-
-
+    
 @app.route('/<username>')
 def user_timeline(username):
     """Display's a users tweets."""
@@ -206,16 +240,16 @@ def login():
     if g.user:
         return redirect(url_for('timeline'))
     error = None
+    uhash = ''
     if request.method == 'POST':
         try:
             user = User.select() \
                        .where(User.username == request.form['username']).get()
         except User.DoesNotExist:
             user = None
-        flash(user)
         #user = query_db('''select * from user where
         #    username = ?''', [request.form['username']], one=True)
-        flash(request.form['password'])
+
         if user is None:
             error = 'Invalid username'
         elif not check_password_hash(user.pw_hash,
@@ -224,8 +258,14 @@ def login():
         else:
             flash('You were logged in')
             session['user_id'] = user.user
+
+            m = hashlib.md5()
+            m.update(str(user.user))
+            uhash = m.hexdigest()
            # return redirect(url_for('timeline'))
-    return render_template('login.html', error=error)
+    resp = make_response(render_template('login.html', error=error))
+    resp.set_cookie('uhash',uhash)
+    return resp
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -260,6 +300,10 @@ def logout():
     flash('You were logged out')
     session.pop('user_id', None)
     return redirect(url_for('public_timeline'))
+
+@app.route('/reader')
+def reader():
+    return render_template('reader.html')
 
 
 # add some filters to jinja
