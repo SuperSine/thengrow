@@ -26,6 +26,7 @@ import hashlib
 
 # configuration
 DATABASE = 'minitwit.db'
+COUCHDB_URL = 'sre.cloudant.com'
 PER_PAGE = 30
 DEBUG = True
 SECRET_KEY = 'development key'
@@ -46,6 +47,12 @@ def get_db():
         top.sqlite_db.row_factory = sqlite3.Row
     return top.sqlite_db
 
+def get_couch():
+    top = _app_ctx_stack.top
+
+    if not hasattr(top,'couchdb'):
+        top.couchdb = Couch(COUCHDB_URL)
+    return top.couchdb;
 
 @app.teardown_appcontext
 def close_database(exception):
@@ -110,10 +117,19 @@ def before_request():
         except User.DoesNotExist:
             g.user = None
 
+@app.route('/tag',methods=['POST','GET'])
+def tag():
+    couch = get_couch()
+
+    data = couch.getWti(session['user_id'])
+    tags = data['tags'] if data.has_key('tags') else {}
+    
+    return render_template('tag.html',tags=tags)
+
 @app.route('/db', defaults={'path': ''})
 @app.route('/<path:path>',methods=['POST','GET'])
 def db(path):
-    headers = {'Content-type':'text/json',
+    headers = {'Content-type':'text/html',
             'Cache-Control':'no-cache, no-store, max-age=0, must-revalidate'}
     if g.user:
         pop_path_info(request.environ)
@@ -123,7 +139,7 @@ def db(path):
         path = environ.get('PATH_INFO')
         query = environ.get('QUERY_STRING')
         body= ''  # b'' for consistency on Python 3.0 
-        couch = Couch('sre.cloudant.com')
+        couch = get_couch()
 
         try:
             length= int(environ.get('CONTENT_LENGTH', '0'))
@@ -131,10 +147,8 @@ def db(path):
             length = 0
         if length != 0:
             body = environ['wsgi.input'].read(length)
-        return repr(type(body))
-        r = couch.send(method,path + '?' + query,body)
-        status = "%s %s" % (r.status,r.reason)
-        response = r.read()
+        
+        status,response = couch.process(method,path,query,session['user_id'],body)
     else:
         response = 'need log in to procee operation'
         status = '200 OK'

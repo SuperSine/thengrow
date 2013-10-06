@@ -1,5 +1,5 @@
 body {
-    background: #CAECE9;
+    background: none repeat scroll 0 0 #F2F2F2;
     font-family: 'Trebuchet MS', sans-serif;
     font-size: 14px;
 }
@@ -38,7 +38,7 @@ input[type="submit"] {
 
 div.page {
     background: white;
-    border: 1px solid #6ECCC4;
+    border: 1px solid #D2D2D2;
     width: 800px;
     margin: 30px auto;
 }
@@ -145,6 +145,10 @@ div.page div.twitbox p {
 
 div.page div.twitbox input[type="text"] {
     width: 585px;
+}
+
+div.page div.twitbox .tag_input input{
+    width: 200px;
 }
 
 div.page div.twitbox input[type="submit"] {

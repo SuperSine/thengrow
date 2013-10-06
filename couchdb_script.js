@@ -108,19 +108,45 @@ if(doc.doc && qDoc){doc.doc.push(qDoc)}else{doc.doc=[qDoc]};
 if(req.body.id){delete doc._rev;delete doc._revisions;var nDoc = doc.doc.pop();if(nDoc)doc.doc=[nDoc];else doc.doc=null;doc.timestamp=req.body.timestamp;}else{newDoc=doc;}
 doc._id=req.body.id;
 doc.type = req.body.type;
+doc.uid = req.body.uid;
 return[doc,items_affected.toString()]};
 
 /*mergeTag*/
 function(doc,req){
     req.body = JSON.parse(req.body);
-    var tags = req.body.tags;
+    var tags = JSON.parse(req.body.tags);
     var keys = Object.keys(tags);
+    var rmTags = [];
     if(doc){
+        doc.tags = doc.tags ? doc.tags : {};
+        var origTags = Object.keys(doc.tags);
+        origTags.forEach(
+            function(e){
+                if(!tags[e])rmTags.push(e);
+            }
+        );
         keys.forEach(
             function(e){
                 if(!doc.tags[e])doc.tags[e] = tags[e];
             }
         );    
+
+        if(doc.word_tag_info){
+            var lib=require('WordInfo');
+            wi = new lib.WordInfo(doc.word_tag_info);
+
+            rmTags.forEach(
+                function(e){
+                    var rmDict = {};
+                    rmDict[wi.getDeleteFlag() + e] = '';
+
+                    wi.merge(rmDict);
+                }
+            );
+
+            doc.word_tag_info=wi.toJson();
+            doc.tags = tags;
+        }
     }else{
         doc = {'_id':req.body.id,'type':req.body.type,'tags':req.body.tags};
     }

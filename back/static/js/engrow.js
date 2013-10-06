@@ -181,12 +181,14 @@ function CouchDb(url){
 	}
 
 	this.mergeTags = function(tags){
-		var id = md5(USER_ID.toString() + '_' + 'tags');
+		/*var id = md5(USER_ID.toString() + '_' + 'tags');*/
+		var id = WTI_KEY ? WTI_KEY : "";
 		this.getInstance().db(this._wti_db_name).updateDoc("trigger/mergeTags",
 			id,
 			{
 				'tags':tags,
 				'id':id,
+				'type':'words',
 				success:function(data){console.log(data);}
 			}
 		);
@@ -231,9 +233,13 @@ function CouchDb(url){
 			{
 				limit:1,
 				descending:true,
+				include_docs:true,
+				reduce:false,
+				startkey:[],
+				endkey:[{}],
 				success:function(data){
 					if(data.rows[0]){
-						tagsInfo = data.rows[0].value;
+						tagsInfo = data.rows[0].doc.word_tag_info;
 						WTI_KEY = data.rows[0].id;
 						twi = new WordInfo(tagsInfo);
 						twi.restore(1);					
@@ -623,7 +629,8 @@ function Tagger(wi,getfeature,gc){
 			'color':color,
 			'shrt':shrt
 		};
-		this.newTags[gc(5)] = newTag;
+		/*this.newTags[gc(5)] = newTag;*/
+		this.tags[gc(5)] = newTag;
 	}
 
 	this.addTag = function(word,tnames){
@@ -817,6 +824,10 @@ function WordInfo(construct,selfDelete){
 		if(typeof(this._wti[key]) == 'undefined')
 			this._wti[key] = 1;
 		return this._wti[key];
+	}
+
+	this.getDeleteFlag = function(){
+		return DELETE_FLAG;
 	}
 
 	this.setInfo = function(key,values,newValFunc){

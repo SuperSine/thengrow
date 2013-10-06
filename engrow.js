@@ -819,6 +819,10 @@ function WordInfo(construct,selfDelete){
 		return this._wti[key];
 	}
 
+	this.getDeleteFlag = function(){
+		return DELETE_FLAG;
+	}
+
 	this.setInfo = function(key,values,newValFunc){
 		for(var i in values){
 			var index = values[i]['index'];

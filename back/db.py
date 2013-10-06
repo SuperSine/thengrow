@@ -8,25 +8,81 @@ from base64 import b64encode
 import urlparse
 import urllib
 import re
+import json
+from cgi import parse_qs,escape
+
+
+def setUid2Key(obj,uid):
+    uid = str(uid)
+    
+    if type(obj) == str: obj = parse_qs(obj)
+    obj = dict((k,obj[k].pop(0)) for k in obj)
+    obj = parseFor(obj)
+
+    startkey = 'startkey'
+    endkey   = 'endkey'
+    descending = 'descending'
+
+    if obj.has_key(startkey) and type(obj[startkey]) is list:
+        obj[startkey].insert(0,uid)
+    if obj.has_key(endkey) and type(obj[endkey]) is list:
+        obj[endkey].insert(0,uid)
+    
+    '''
+    Note that the descending option is applied before any key filtering, 
+    so you may need to swap the values of the startkey and endkey options 
+    to get the expected results.
+    '''
+    if obj.has_key(descending) and obj[descending]:
+        obj[startkey],obj[endkey] = obj[endkey],obj[startkey]
+
+    obj = parseBack(obj)
+    obj = urllib.urlencode(obj)
+    return obj
+
+def setUid2Body(body,uid):
+    uid = str(uid)
+    
+    body = parseFor(body)
+    
+    if body.has_key('uid') == False:
+        body['uid'] = uid
+
+    body = parseBack(body)
+    body = json.dumps(body)
+    return body
 
 class DataReviser:
-    def __init__():
+    def __init__(self):
         self.dict = {}
 
-    def setPair(key,func):
-        if self.dict.has_key(key):
-            return
+    def setPair(self,key,func):
+        if self.dict.has_key(key):return
         self.dict[key] = func
 
-    def revise(key,data):
-        for dKey,dValue in self.dict:
+    def revise(self,key,data,uid):
+        for dKey,dValue in self.dict.items():
             match = re.search(dKey,key)
             if match is None:continue
-            data = self.dict[dKey](data)
+            data = self.dict[dKey](data,uid)
         return data
 
+def parseFor(obj):
+    if type(obj) is str:
+        obj = json.loads(obj)
+    for key in obj:
+        if type(obj[key]) is str and ( obj[key][0] == '{' or obj[key][0] == '['): 
+            try:
+                obj[key] = json.loads(obj[key])
+            except ValueError:
+                obj[key] = obj[key] if type(obj[key]) != unicode else str(obj[key])
+    return obj
 
-
+def parseBack(obj):
+    for key in obj:
+        if type(obj[key]) == dict or type(obj[key]) == list:
+            obj[key] = json.dumps(obj[key])
+    return obj
 
 class Couch:
     """Basic wrapper class for operations on a couchDB"""
@@ -39,6 +95,37 @@ class Couch:
         return httplib.HTTPConnection(self.host) # No close()
 
     # Basic http methods
+    def getWti(self,uid):
+        method = 'GET'
+        path = '/engrow/_design/words/_view/wti'
+        query = 'limit=1&descending=true&include_docs=true&reduce=false&startkey=[]&endkey=[{}]'
+        data = None
+        status,rep = self.process(method,path,query,uid)
+
+        if '200' in status:
+            data = json.loads(rep)
+            if len(data['rows']) == 0:
+                data = {}
+            else:
+                data = data['rows'][0]['doc']
+
+        return data
+
+    def process(self,method,path,query,uid,body=None):
+        queryReviser = DataReviser()
+        bodyReviser = DataReviser()
+
+        queryReviser.setPair("engrow\/_design\/[\w\/]+",setUid2Key)
+        bodyReviser.setPair("engrow\/_design\/[\w\/]+", setUid2Body)
+
+        query = queryReviser.revise(path,query,uid)
+        if body : body = bodyReviser.revise(path,body,uid)        
+#return repr(body)
+        r = self.send(method,path + '?' + query,body)
+        status = "%s %s" % (r.status,r.reason)
+        response = r.read()
+
+        return status,response
 
     def send(self,act,uri,body=None):
         c = self.connect()
@@ -83,6 +170,7 @@ class Couch:
         c = self.connect()
         c.request("DELETE", uri)
         return c.getresponse()
+
 
 def basic_auth(credentials):
     if credentials:

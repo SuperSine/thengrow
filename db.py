@@ -9,36 +9,70 @@ import urlparse
 import urllib
 import re
 import json
+from cgi import parse_qs,escape
 
 
-def setRangeKey():
-    return
+def setUid2Key(obj,uid):
+    uid = str(uid)
+    
+    if type(obj) == str: obj = parse_qs(obj)
+    obj = parseFor(obj)
 
-def setUserId(body,uid):
-    if type(body) is str:
-        body = json.loads(body)
+    startkey = 'startkey'
+    endkey   = 'endkey'
+
+    if obj.has_key(startkey) and type(obj[startkey]) is list:
+        obj[startkey].insert(0,uid)
+    if obj.has_key(endkey) and type(obj[endkey]) is list:
+        obj[endkey].insert(0,uid)
+    
+    obj = urllib.urlencode(obj)
+    return obj
+
+def setUid2Body(body,uid):
+    uid = str(uid)
+    
+    body = parseFor(body)
+    
     if body.has_key('_user_id') == False:
         body['_user_id'] = uid
+
+    body = parseBack(body)
     return body
 
 class DataReviser:
-    def __init__():
+    def __init__(self):
         self.dict = {}
 
-    def setPair(key,func):
-        if self.dict.has_key(key):
-            return
+    def setPair(self,key,func):
+        if self.dict.has_key(key):return
         self.dict[key] = func
 
-    def revise(key,data):
+    def revise(self,key,data,uid):
         for dKey,dValue in self.dict:
             match = re.search(dKey,key)
             if match is None:continue
-            data = self.dict[dKey](data)
+            data = self.dict[dKey](data,uid)
         return data
 
+def parseFor(obj):
+    if type(obj) is str:
+        obj = json.loads(obj)
+    for key in obj:
+        if type(obj[key]) == str or type(obj[key]) == unicode:
+            try:
+                obj[key] = json.loads(obj[key])
+            except ValueError:
+                obj[key] = obj[key]
+    return obj
 
+def parseBack(obj):
+    for key in obj:
+        if type(obj[key]) == dict or type(obj[key]) == list:
+            obj[key] = json.dumps(obj[key])
+    obj = json.dumps(obj)
 
+    return obj
 
 class Couch:
     """Basic wrapper class for operations on a couchDB"""

@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block title %}
+  Tagger
+{% endblock %}
+{% block body %}
+  <h2>{{ self.title() }}</h2>
+  {% if g.user %}
+
+      <div class=twitbox>
+        {% for tag_info in tags%}
+          <div class=tag_input>
+          <input type=text name=text size=60 value={{ tags[tag_info]['name'] }}>
+          <input type=text name=text size=60 value={{ tags[tag_info]['color'] }}>
+          <input type=text name=text size=60 value={{ tags[tag_info]['shrt'] }}>
+          <a href="">Delete</a>
+          </div>
+        {% endfor %}
+          
+      <div class=tag_input>
+          <input type=text name=text size=60 value=>
+          <input type=text name=text size=60 value=>
+          <input type=text name=text size=60 value=>
+          <a href="">Create</a>
+          </div>
+      </div>
+  {% endif %}
+{% endblock %}
