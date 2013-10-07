@@ -1,8 +1,108 @@
 {% extends "layout.html" %}
+{% block js%}
+<script type="text/javascript" src="{{ url_for('static',filename='js/apache.jquery.couch.js')}}"></script>
+<script type="text/javascript" src="{{ url_for('static',filename='js/engrow.js')}}"></script>
+<style type="text/css">
+
+ul {
+    list-style: none outside none;
+    margin: 0;
+    padding: 0;
+}
+#social-sidebar {
+    left: 0;
+    margin-top: -75px;
+    position: fixed;
+    top: 50%;
+}
+#social-sidebar li:first-child a {
+    border-radius: 0 5px 0 0;
+}
+#social-sidebar li:last-child a {
+    border-radius: 0 0 5px 0;
+}
+#social-sidebar a {
+    background: none repeat scroll 0 0 #121212;
+    color: #FFFFFF;
+    display: block;
+    font-size: 18px;
+    height: 50px;
+    line-height: 50px;
+    position: relative;
+    text-align: center;
+    width: 50px;
+}
+#social-sidebar a:hover span {
+    left: 130%;
+    opacity: 1;
+}
+#social-sidebar a span {
+    border-radius: 3px 3px 3px 3px;
+    left: -100%;
+    line-height: 24px;
+    margin-top: -16px;
+    opacity: 0;
+    padding: 4px 8px;
+    position: absolute;
+    top: 50%;
+    transition: opacity 0.3s ease 0s, left 0.4s ease 0s;
+    white-space: nowrap;
+    z-index: -1;
+}
+#social-sidebar a span:before {
+    content: "";
+    display: block;
+    height: 8px;
+    left: -4px;
+    margin-top: -4px;
+    position: absolute;
+    top: 50%;
+    transform: rotate(45deg);
+    width: 8px;
+    z-index: -2;
+}
+#social-sidebar a[class*="twitter"]:hover, #social-sidebar a[class*="twitter"] span, #social-sidebar a[class*="twitter"] span:before {
+    background: none repeat scroll 0 0 #00ACED;
+}
+#social-sidebar a[class*="dribbble"]:hover, #social-sidebar a[class*="dribbble"] span, #social-sidebar a[class*="dribbble"] span:before {
+    background: none repeat scroll 0 0 #EA4C89;
+}
+#social-sidebar a[class*="behance"]:hover, #social-sidebar a[class*="behance"] span, #social-sidebar a[class*="behance"] span:before {
+    background: none repeat scroll 0 0 #1769FF;
+}
+
+</style>
+{% endblock %}
 {% block title %}
   Tagger
 {% endblock %}
+
 {% block body %}
+<nav id="social-sidebar">
+
+      <ul>
+
+        <li>
+          <a href="https://twitter.com/m412c0b" class="entypo-twitter" target="_blank">
+            <span>Twitter</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="http://dribbble.com/m412c0" class="entypo-dribbble" target="_blank">
+            <span>dribbble</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="http://www.behance.net/m412c0" class="entypo-behance" target="_blank">
+            <span>behance</span>
+          </a>
+        </li>
+
+      </ul>
+
+    </nav>
   <h2>{{ self.title() }}</h2>
   {% if g.user %}
 
