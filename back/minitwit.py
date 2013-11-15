@@ -123,7 +123,7 @@ def tag():
 
     data = couch.getWti(session['user_id'])
     tags = data['tags'] if data.has_key('tags') else {}
-    
+    #return repr(tags)
     return render_template('tag.html',tags=tags)
 
 @app.route('/db', defaults={'path': ''})

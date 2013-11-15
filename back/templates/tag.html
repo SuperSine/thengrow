@@ -2,6 +2,9 @@
 {% block js%}
 <script type="text/javascript" src="{{ url_for('static',filename='js/apache.jquery.couch.js')}}"></script>
 <script type="text/javascript" src="{{ url_for('static',filename='js/engrow.js')}}"></script>
+<script type="text/javascript">
+   
+</script>
 <style type="text/css">
 
 ul {
@@ -108,7 +111,7 @@ ul {
 
       <div class=twitbox>
         {% for tag_info in tags%}
-          <div class=tag_input>
+          <div class=tag_input id="{{ tag_info }}">
           <input type=text name=text size=60 value={{ tags[tag_info]['name'] }}>
           <input type=text name=text size=60 value={{ tags[tag_info]['color'] }}>
           <input type=text name=text size=60 value={{ tags[tag_info]['shrt'] }}>
