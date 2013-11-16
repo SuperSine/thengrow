@@ -3,8 +3,36 @@
 <script type="text/javascript" src="{{ url_for('static',filename='js/apache.jquery.couch.js')}}"></script>
 <script type="text/javascript" src="{{ url_for('static',filename='js/engrow.js')}}"></script>
 <script type="text/javascript">
-   
+  $("#create_tag").live('click',function(e){
+  $("#back_up .tag_input").clone().appendTo(".twitbox");
+  });
+   $("#delete_tag").live('click',function(e){
+   e.currentTarget.parentElement.remove();
+   }
+   );
+   function updateTags(){
+   $(".twitbox").children().each(
+      function(i,v){
+        tagList = typeof(tagList) != "undefined" ? tagList : {};
+        var id = $(v).attr('id');
+        if(!id)id = gc(5);
+        tagList[id] = {
+                    'name':$(v).children()[0].value,
+                    'color':$(v).children()[1].value,
+                    'shrt':$(v).children()[2].value
+                  };
+      }
+   );
+   _couchDb.mergeTags(tagList);
+   }
 </script>
+
+<style type="text/css">
+.twitbox #new_tag{
+ /* display:none;*/
+}
+</style>
+
 <style type="text/css">
 
 ul {
@@ -115,16 +143,18 @@ ul {
           <input type=text name=text size=60 value={{ tags[tag_info]['name'] }}>
           <input type=text name=text size=60 value={{ tags[tag_info]['color'] }}>
           <input type=text name=text size=60 value={{ tags[tag_info]['shrt'] }}>
-          <a href="">Delete</a>
+          <span id="delete_tag" style="cursor:pointer">Delete</span>
           </div>
         {% endfor %}
-          
-      <div class=tag_input>
-          <input type=text name=text size=60 value=>
-          <input type=text name=text size=60 value=>
-          <input type=text name=text size=60 value=>
-          <a href="">Create</a>
-          </div>
       </div>
+      <div id="create_tag" style="cursor:pointer">Create</div>
+      <div id="back_up" style="display:none">
+        <div class="tag_input">
+          <input type=text name=text size=60>
+          <input type=text name=text size=60>
+          <input type=text name=text size=60>
+          <span id="delete_tag" style="cursor:pointer">Delete</span>
+        </div>
+      </div>      
   {% endif %}
 {% endblock %}
