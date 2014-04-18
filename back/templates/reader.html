@@ -2,15 +2,21 @@
 <head>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='reader_style.css') }}">
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='reader_ui.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='bootstrap-tagsinput.css') }}">
+<link rel="stylesheet" type="text/css" href="static/bootstrap/dist/css/bootstrap.css">
 <script type="text/javascript" src="static/js/porterstemmer.js"></script>
 <script type="text/javascript" src="static/js/utils.js"></script>
 <script type="text/javascript" src="static/js/jquery-1.7.1.js"></script>
+<script type="text/javascript" src="static/js/apache.jquery.couch.js"></script>
 <script type="text/javascript" src="static/js/jquery.myhighlight-3.js"></script>
 <script type="text/javascript" src="static/js/jquery.shortcuts.js"></script>
-<script type="text/javascript" src="static/js/apache.jquery.couch.js"></script>
 <script type="text/javascript" src="static/js/engrow.js"></script>
 <script type="text/javascript" src="static/js/md5.js"></script>
 <script type="text/javascript" src="static/js/ui.js"></script>
+<script type="text/javascript" src="static/js/bootstrap-tagsinput.js"></script>
+
+
+<script type="text/javascript" src="static/bootstrap/dist/js/bootstrap.min.js"></script>    
 <script type="text/javascript">
 	//NO_WTI = true;
 /*
@@ -24,6 +30,111 @@
 		}
 	}
 */
+function getSelectionDimensions() {
+    var sel = document.selection, range;
+    var width = 0, height = 0;
+    if (sel) {
+        if (sel.type != "Control") {
+            range = sel.createRange();
+            width = range.boundingWidth;
+            height = range.boundingHeight;
+        }
+    } else if (window.getSelection) {
+        sel = window.getSelection();
+        if (sel.rangeCount) {
+            range = sel.getRangeAt(0).cloneRange();
+            if (range.getBoundingClientRect) {
+                var rect = range.getBoundingClientRect();
+                width = rect.right - rect.left;
+                height = rect.bottom - rect.top;
+            }
+        }
+    }
+    return { width: width , height: height };
+}
+
+var markSelection = function() {
+    var markerTextChar = "\ufeff";
+    var markerTextCharEntity = "&#xfeff;";
+
+    var markerEl, markerId = "sel_" + new Date().getTime() + "_" + Math.random().toString().substr(2);
+
+    var selectionEl;
+
+    
+    var sel, range;
+    
+    if (document.selection && document.selection.createRange) {
+      // Clone the TextRange and collapse
+      range = document.selection.createRange().duplicate();
+      range.collapse(false);
+      
+      // Create the marker element containing a single invisible character by creating literal HTML and insert it
+      range.pasteHTML('<span id="' + markerId + '" style="position: relative;">' + markerTextCharEntity + '</span>');
+      markerEl = document.getElementById(markerId);
+    } else if (window.getSelection) {
+      sel = window.getSelection();
+      
+      if (sel.getRangeAt) {
+        range = sel.getRangeAt(0).cloneRange();
+      } else {
+        // Older WebKit doesn't have getRangeAt
+        range.setStart(sel.anchorNode, sel.anchorOffset);
+        range.setEnd(sel.focusNode, sel.focusOffset);
+        
+        // Handle the case when the selection was selected backwards (from the end to the start in the
+        // document)
+        if (range.collapsed !== sel.isCollapsed) {
+          range.setStart(sel.focusNode, sel.focusOffset);
+          range.setEnd(sel.anchorNode, sel.anchorOffset);
+        }
+      }
+      
+      range.collapse(false);
+      
+      // Create the marker element containing a single invisible character using DOM methods and insert it
+      markerEl = document.createElement("span");
+      markerEl.id = markerId;
+      markerEl.appendChild( document.createTextNode(markerTextChar) );
+      range.insertNode(markerEl);
+    }
+    
+    if (markerEl) {
+      // Lazily create element to be placed next to the selection
+      if (!selectionEl) {
+        selectionEl = document.createElement("div");
+        selectionEl.id = "big";
+        /*
+                  selectionEl.style.border = "solid darkblue 1px";
+                  selectionEl.style.backgroundColor = "lightgoldenrodyellow";
+                  selectionEl.innerHTML = "&lt;- selection";
+                  */
+        selectionEl.style.position = "absolute";
+        
+        document.body.appendChild(selectionEl);
+      }
+      
+      // Find markerEl position http://www.quirksmode.org/js/findpos.html
+      var obj = markerEl;
+      var left = 0, top = 0;
+      do {
+        left += obj.offsetLeft;
+        top += obj.offsetTop;
+      } while (obj = obj.offsetParent);
+      
+      // Move the button into place.
+      // Substitute your jQuery stuff in here
+      selectionEl.style.left = (left - (getSelectionDimensions()['width']/2)) + "px";
+      selectionEl.style.top = top + "px";
+      
+      markerEl.parentNode.removeChild(markerEl);
+    }
+
+    return range.toString();
+    
+};
+    
+    
 	var ENABLE_CONTEXT_MENU = false;
 
 	Highlighter.prototype.ContentArea = 'contentarea';
@@ -96,6 +207,13 @@
 
 </head>
 <body>
+<div style="display:none;">
+
+<div id="popoverContent1" class="hide">
+	<input id="bigbian" />
+</div>    
+
+ </div>
 <div>
 	<input id="content_title" value="">
 	<input id="content_cate" value="">
@@ -128,6 +246,26 @@
 <div id="resultarea"></div>
 <div id="content_dict_area"></div></body>
 <script type="text/javascript">
+
+    function showTagPanel(){
+    	var obj = document.querySelector("#big");
+
+    	if(obj)obj.remove();
+
+    	markSelection();
+
+    	$('#big').popover({
+            html: true,
+            placement:'top',
+            content: $('#popoverContent1').html(),
+            trigger:'manual'
+        });
+
+    	$("#big").popover("show");
+
+    }
+
+    
 	$(document).ready(function(){
 		init_shortcuts();
 		var menu = ui.menu()
@@ -156,9 +294,50 @@
 			getDocumentById(id);
 			localStorage.removeItem('engrow_id');
 
-		}
+		}     
+        
+       
+        
+        $(document).on('dblclick',function (e) {
+        	showTagPanel();
+        	/*
+        	console.log(e);
+            if ($(e.target).is('.close')) {
+                $('#big').popover('hide');
+            }
+            */
+        });   
 
+/*
+        $(document).on('mouseup',function(e){
+        	if(window.getSelectionText() == "")return;
 
+        	showTagPanel();
+        });
+*/
+        $(document).on('click',function (e) {
+        	if(e.toElement == document.activeElement && document.activeElement.id == 'bigbian')return;
+
+            if (document.querySelector(".popover")) {
+                $('#big').popover('hide');
+            }
+        });     
+
+		$('#bigbian').tagsinput({
+		  itemValue: 'value',
+		  itemText: 'text',
+		  typeahead: {
+		    source: function(query) {
+		      return [{"value":1,"text":"Amsterdam","continent":"Europe"},{"value":4,"text":"Washington","continent":"America"},{"value":7,"text":"Sydney","continent":"Australia"},{"value":10,"text":"Beijing","continent":"Asia"},{"value":13,"text":"Cairo","continent":"Africa"},{"value":6,"text":"Buenos Aires","continent":"America"}];
+		    }
+		  }
+		});
+		 
+		$('#bigbian').tagsinput('add', { "value": 1 , "text": "Amsterdam"  });
+		$('#bigbian').tagsinput('add', { "value": 4 , "text": "Washington" });
+		$('#bigbian').tagsinput('add', { "value": 7 , "text": "Sydney"     });
+		$('#bigbian').tagsinput('add', { "value": 10, "text": "Beijing"    });
+		$('#bigbian').tagsinput('add', { "value": 13, "text": "Cairo"      });
 	});
 </script>
 </html>
