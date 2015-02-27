@@ -1,1 +1,1 @@
-## langread - learn language, without remember. [
+## langread - learn language, without remember. 
