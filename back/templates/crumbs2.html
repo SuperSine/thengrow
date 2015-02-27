@@ -1,0 +1,151 @@
+<DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script type="text/javascript" src="/static/js/porterstemmer.js"></script>
+	<script type="text/javascript" src="/static/js/utils.js"></script>
+	<script type="text/javascript" src="/static/js/jquery.js"></script>
+	<script type="text/javascript" src="/static/js/jquery.myhighlight-3.js"></script>
+	<script type="text/javascript" src="/static/js/apache.jquery.couch.js"></script>
+	<script type="text/javascript" src="/static/js/engrow.js"></script>
+<script type="text/javascript">
+	NO_WTI = false;
+	M_DOCS_LOAD = 'doc/load';
+	var reader_url = "getstarted (3).html";
+
+	_methoder.namespace(M_CRUMBS_DLOAD,
+		function(dWords){
+			document.querySelector("#cnt").innerHTML = '';
+			for(var i in dWords){
+				var elmt = document.createElement('div');
+				var date = new Date(dWords[i]['key'][1]*1000);
+				var word = dWords[i]['key'][3];
+				var tagId= dWords[i]['key'][0];
+				elmt.innerHTML = word + " " + tagId + " " + date.toString();
+				document.getElementById('cnt').appendChild(elmt);
+			}
+
+			var elmt = document.createElement('div');
+			var next = document.createElement('span');
+			var pre  = document.createElement('span');
+
+			next.id = 'next';
+			pre.id  = 'pre';
+
+			next.innerHTML = "Next";
+			pre.innerHTML = "Pre";
+
+			elmt.appendChild(pre);
+			elmt.appendChild(next);
+
+			document.getElementById("cnt").appendChild(elmt);
+
+		}
+	);
+	_methoder.namespace(M_CRUMBS_RDOCS,
+		function(docsList){
+			document.querySelector("#docs ol").innerHTML = '';
+			var totalCount = docsList.length;
+			for(var i = totalCount - 1;i >= 0;--i){
+				var elmt = document.createElement("li");
+				elmt.innerText = docsList[i].doc.doc_title;
+				document.querySelector("#docs ol").appendChild(elmt);
+			}			
+
+		}
+	);
+
+	_methoder.namespace(M_DOCS_LOAD,function(docsList){
+		for(var i in docsList){
+			var elmt = document.createElement('div');
+			elmt.innerHTML = docsList[i]['value']['title'];
+			elmt.setAttribute('id',docsList[i]['value']['id']);
+			elmt.addEventListener('click',function(event){
+				var id = event.currentTarget.getAttribute('id');
+				localStorage.setItem('engrow_id',id);
+				window.open(reader_url);
+			});
+			document.getElementById('cnt').appendChild(elmt);
+		}
+		
+	});
+</script>
+</head>
+<body>
+<div class="mainarea">
+	<div class="searcharea">
+		<input id="word" value="">
+		<input id="find" class="btn" type="button" value="Go"/>
+	</div>
+	<div id="cnt" class='listarea'>
+		<div>123</div>
+		<div>456</div>
+		<a href="">More</a>
+	</div>
+</div>
+	<script type="text/javascript">
+		var result = null;
+		document.querySelector('#find').addEventListener('click',
+			function(event){
+				document.querySelector("#cnt").innerHTML = '';
+				var value = document.querySelector("#word").value;
+				if(value == 'doc:'){
+					var view = 'docs/by_doc_ids';
+					var options = {
+						'group':true,
+						'group_level':2,
+						success:function(data){
+							_methoder.namespace(M_DOCS_LOAD).run(data.rows);
+						}
+					};
+				}else{
+					var root = stemmer(value);
+					var view = "crumbs/by_default";
+					var now  = new Date();
+					var options = {
+							'descending':true,
+							'reduce':false,
+							success:function(data){
+								_methoder.namespace(M_CRUMBS_DLOAD).run(data.rows);
+							}
+					};
+
+					if(root && root != ""){
+						options['startkey'] = [1970,1,1,1,1,root];
+						options['endkey'] = [
+												now.getFullYear(),
+												now.getMonth() + 1,
+												now.getDate(),
+												now.getHours(),
+												now.getMinutes(),
+												getroot,
+												{}
+											];
+					}				
+				}
+
+
+				result = new Result(view,options);
+				
+				if(result.hasNext())
+					result.next();
+			}
+		);
+
+		$("#cnt").on("click","#next",function(e){
+			if(result.hasNext())
+				result.next();
+			else
+				$("#next").remove();
+		});
+
+		$("#cnt").on("click","#pre",function(e){
+			if(result.hasPre())
+				result.pre();
+			else
+				$("#pre").remove();
+		});		
+
+	</script>
+</body>
+</html>
