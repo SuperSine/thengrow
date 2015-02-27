@@ -1,4 +1,4 @@
-﻿(function ($) {
+(function ($) {
   "use strict";
 
   var defaultOptions = {
@@ -257,7 +257,7 @@
               }
               process(texts);
             }
-            debugger;
+
             this.map = {};
             var map = this.map,
                 data = typeahead.source(query);

@@ -23,6 +23,8 @@ from mymodels import *
 from werkzeug.wsgi import DispatcherMiddleware,pop_path_info
 from db import *
 import hashlib
+from api.v1.endpoints import general_api
+
 
 # configuration
 DATABASE = 'minitwit.db'
@@ -36,6 +38,8 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_envvar('MINITWIT_SETTINGS', silent=True)
 app.config.update(SECRET_KEY = SECRET_KEY)
+
+app.register_blueprint(general_api, url_prefix='/api/v1')
 
 def get_db():
     """Opens a new database connection if there is none yet for the
@@ -112,25 +116,29 @@ def before_request():
 
     g.user = None
     if 'user_id' in session:
-        try:
-            g.user = User.select().where(User.user == session['user_id']).get()
-        except User.DoesNotExist:
-            g.user = None
+        g.user = User.select().where(User.user == session['user_id']).get()
+
+
 
 @app.route('/tag',methods=['POST','GET'])
 def tag():
     couch = get_couch()
-
     data = couch.getWti(session['user_id'])
     tags = data['tags'] if data.has_key('tags') else {}
     #return repr(tags)
     return render_template('tag.html',tags=tags)
 
-@app.route('/db', defaults={'path': ''})
-@app.route('/<path:path>',methods=['POST','GET'])
+@app.route('/nmb',methods=['GET','POST'])
+def nmb():
+    raise Exception(session['user_id'])
+    return render_template('tag.html')
+
+@app.route('/db/<path:path>',methods=['POST','GET'])
 def db(path):
+    #raise Exception(session['user_id'])
     headers = {'Content-type':'text/html',
             'Cache-Control':'no-cache, no-store, max-age=0, must-revalidate'}
+    
     if g.user:
         pop_path_info(request.environ)
         status = '200 OK'
@@ -154,6 +162,10 @@ def db(path):
         status = '200 OK'
     return make_response(response,status,headers)
 
+@app.route('/crumb')
+def crumb():
+    return render_template('crumbs2.html')
+
 @app.route('/')
 def timeline():
     """Shows a users timeline or if no user is logged in it will
@@ -170,7 +182,6 @@ def timeline():
 
 @app.route('/public')
 def public_timeline():
-    
     
     """Displays the latest messages of all users."""
     messages = Message.select(User,Message).\
@@ -317,7 +328,11 @@ def logout():
 
 @app.route('/reader')
 def reader():
-    return render_template('reader.html')
+    return render_template('reader2.html')
+
+@app.route('/test')
+def test():
+    return render_template('layout2.html')
 
 
 # add some filters to jinja

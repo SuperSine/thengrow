@@ -123,6 +123,8 @@ function CouchDb(url){
 
 	this._page_options = {};
 
+	this.tags;
+
     this.docExists = false;//whether doc exists
 /*	$.couch.login({
 	    name: "sre",
@@ -227,7 +229,7 @@ function CouchDb(url){
 		);
 	}
 
-	this.getLastWti = function(){
+	this.getLastWti = function(func){
 		this.getInstance().db(this._wti_db_name).view(
 			'words/wti',
 			{
@@ -242,7 +244,9 @@ function CouchDb(url){
 						tagsInfo = data.rows[0].doc.word_tag_info;
 						WTI_KEY = data.rows[0].id;
 						twi = new WordInfo(tagsInfo);
-						twi.restore(1);					
+						twi.restore(1);			
+						func(data.rows[0].doc.tags,new Highlighter(data.rows[0].doc.tags));
+
 						console.log('wti loaded!');
 					}else
 						console.log('no data loaded!');
@@ -451,7 +455,7 @@ function CouchDb(url){
 }
 
 function Result(url,queryOptions){
-	$.couch.urlPrefix = "http://127.0.0.1/engrow/db.py";
+	$.couch.urlPrefix = "http://127.0.0.1:5000/db";
 	this.dbName = "engrow";
 
 	if(queryOptions['limit'])queryOptions['limit'] += 1;
@@ -591,16 +595,18 @@ Tagger.initTags = function(tags,methoder){
 	}
 }
 
-function Tagger(wi,getfeature,gc){
+function Tagger(wt,getfeature,gc){
 	this.gc = gc;
 	this.newTags = {};
 	this.tags = {};
 	this._crumbs = [];
 	this.getfeature = getfeature;
-	if(wi.constructor && wi.constructor.name == WordInfo.name){
-		this._wi = wi;
+	this.featureEnable = true;
+//Object.keys(tagger.tags).forEach(function(key){tagger.tags[key]['key']=key;l.push(tagger.tags[key])})
+	if(wt.constructor && wt.constructor.name == WordsTable.name){
+		this._wordsTable = wt;
 		this._features = {};
-		for(var key in this._wi._wti){
+		for(var key in this._wordsTable.body.table){
 			var feat = getfeature(key);
 	        if (this._features[feat] != null) {
 	            if (this._features[feat].indexOf(key) == -1)
@@ -611,6 +617,24 @@ function Tagger(wi,getfeature,gc){
 	            this._features[feat].push(key);
 	        }		
 		}
+	}
+	this._isUpperWord = function(word){
+		return word.match(/\b([A-Z]+)\b/g) == undefined ? false : true; 
+	}
+	this.getTagName = function(id){
+		return this.tags[id] ? this.tags[id]['name'] : '';
+	}
+
+	this.getTagsArray = function(){
+		var l = [];
+		var that = this;
+		Object.keys(that.tags).forEach(
+						function(key){
+							that.tags[key]['key'] = key;
+							l.push(that.tags[key]);
+						}
+				  );
+		return l;
 	}
 
 	this.getTagId = function(key,value){
@@ -623,43 +647,76 @@ function Tagger(wi,getfeature,gc){
 	}
 
 	this.createTag = function(name,color,shrt){
-		if(!this.gc)return null;
+		if(!this.gc || !name)return null;
 		var newTag = {
 			'name':name,
-			'color':color,
-			'shrt':shrt
+			'color':color ? color : '',
+			'shrt':shrt ? shrt : ''
 		};
 		/*this.newTags[gc(5)] = newTag;*/
 		this.tags[gc(5)] = newTag;
 	}
 
-	this.addTag = function(word,tnames){
-		word = word.trim();
-		if(!Doctor.isUpperWord(word))word = word.toLowerCase();
-
-		var wrapper = {};
-		var feature = this.getfeature(word);
-		var words = this._features[feature];
-
-		if(typeof(tnames) == 'string')
+	this.addTagByName = function(word,tnames){
+		if(typeof(tnames) == 'string' && tnames)
 			tnames = tnames.split(',');
-
-		if(!this._wi.getInfo(word)){/*do not exist*/
-			words = [word];	
-			this._wi.load(words);
-		}
+		if(!word || !tnames || tnames.length == 0)return;	
 		
-		for(var i in words)wrapper[words[i]] = [null,tnames];
+		var tids = [];
+		tnames.forEach(function(name){
+			var id = getTagId('name',name);
+			id = id ? id : createTag(name);
 
-		this._wi.merge(wrapper);
+			tids.push(id);
+		});
 
-		var tags = this._wi.defaultRef[word][1];
-		if(!tags || tags.length == 0)
-			this._wi.remove(word);
+		var words = this.addTag(word,tids);
 
 		return words;
 	}
 
+	this.addTag = function(word,tids){
+		if(typeof(tids) == 'string' && tids)
+			tids = tids.split(',');
+		if(!word || !tids || tids.length == 0)return;
+
+		word = word.trim();
+		if(!this._isUpperWord(word))word = word.toLowerCase();
+
+		var wordsTable = new WordsTable();
+		var wrapper = {};
+		var feature = this.getfeature(word);
+		var words = this._features[feature];
+
+		Object.keys(words).forEach(function(word){
+			/*set 1 to the count if the word does not exist*/
+			var count = this._wordsTable.getInfo(word) ? 0 : 1;
+			wordsTable.body.table[word] = {'_count':count,'_tags':tids};
+		});
+
+		this._wordsTable.merge(wordsTable);
+
+		return words;
+	}
+
+	this.setTag = function(word,tids){
+
+		var getNewTag = this._wi._getNewTag;
+		this._wi._getNewTag = function(old,last){ return last; };
+
+		this.addTag(word,tids);
+
+		this._wi._getNewTag = getNewTag;
+	}
+
+	this.getTags = function(word){
+		word = word.trim();
+		if(!this._isUpperWord(word))word = word.toLowerCase();	
+
+		var info = this._wordsTable.getInfo(word);	
+
+		return info && info['_tags'] ? info['_tags'] : [];
+	}
 	this.hasTag = function(word,tids){
 		var info = this._wi.getInfo(word);
 		if(!info || !info[1])return false;
@@ -669,12 +726,16 @@ function Tagger(wi,getfeature,gc){
 		return cTids.length == tids.length ? true : false;
 	}
 
-	this.mergeCommonTag = function(fWi,tags){
+	this.mergeCommonTag = function(fWi,tags,defaultTags){
 		/*tags = Utils.get_array(tags);*/
 		for(var key in this._wi._wti){
-			var info = fWi.getInfo(key);
-			if(!info)continue;
-			this.addTag(key,info[1]);
+			var info = fWi.getInfo(key) ? fWi.getInfo(key)[1] : null;
+			if(defaultTags && !info){
+				info = typeof(defaultTags) == "string" ? defaultTags.split(',') : defaultTags;
+			}else if(!info)
+				continue;
+
+			this.addTag(key,info);
 		}
 	}
 
@@ -692,8 +753,9 @@ function Tagger(wi,getfeature,gc){
 	}
 }
 
-function Highlighter(tags){
+function Highlighter(tags,contentarea){
 	this.tags = tags;
+	Highlighter.prototype.ContentArea = contentarea;
 
 	this.getColor = function(tag){
 		return this.tags[tag] ? this.tags[tag]['color'] : null;
@@ -719,7 +781,6 @@ function Highlighter(tags){
 
 Highlighter.prototype.removeHighlight = null;
 Highlighter.prototype.highlight       = null;
-Highlighter.prototype.ContentArea     = null;
 /*
 function GeniusObject(obj){
 	this._object = obj;
@@ -751,6 +812,316 @@ function toSimple(struct){
 		}
 	}
 	return newWi;
+}
+
+var table = {
+	'be':  {_count:43,_tags:['fsdf','fasd']},
+	'good':{_count:43,_tags:['vcxf','fewd']},
+};
+
+function ObjectTable(construct){
+
+}
+
+ObjectTable.prototype._reduce = function(target,source){
+	for (var prop in source) {
+		if (typeof source[prop] === 'object') {
+		  target[prop] = this._reduce.call(this,target[prop], source[prop]);
+		}else {
+		  if(target[prop] && source[prop])delete target[prop];
+		}
+	}
+	return target;
+};
+ObjectTable.prototype._extend = function(target,source,func) {
+	target = target || {};
+	for (var prop in source) {
+		if (typeof source[prop] === 'object') {
+			if(source[prop].constructor.name === 'Array')
+				target[prop] = target[prop] || [];
+			target[prop] = this._extend.call(this,target[prop], source[prop],func);
+		}else {
+			if(typeof func === 'function')
+				target[prop] = func(target[prop],source[prop],prop);
+			else
+				target[prop] = source[prop];
+		}
+	}
+	return target;
+};
+ObjectTable.prototype._unique = function(arr) {
+	var result = [];
+	arr.forEach(function(item) {
+	     if(result.indexOf(item) < 0) {
+	         result.push(item);
+	     }
+	});
+    return result;
+}
+
+ObjectTable.prototype.clone = function(obj){
+	var source = JSON.stringify(obj);
+	return JSON.parse(source);	
+};
+
+function WordsTable(construct){
+	this.body = {table:{}};
+	this.NONE_TAG = '0';
+
+	if(construct && construct.constructor && construct.constructor.name == TagsTable.name){
+		var tagsTable = construct;
+		var table = this._fromTagsTable(tagsTable);
+		this.body.table = table;
+	}
+}
+
+function TagsTable(construct){
+	this.body = {table:{}};
+	this.NONE_TAG = '0';
+
+	if(construct && construct.constructor && construct.constructor.name == WordsTable.name){
+		var wordsTable = construct;
+		var table = this._fromWordsTable(wordsTable);
+		this.body.table = table;
+	}
+}
+
+TagsTable.prototype._fromWordsTable = function(obj){
+	if(!WordsTable.prototype._isWordsTable(obj))return;
+	var table = obj.body.table;
+	var result = {};
+	Object.keys(table).forEach(function(word){
+		if(!table[word]['_tags'])table[word]['_tags'] = [ NONE_TAG ];
+
+		Object.keys(table[word]['_tags']).forEach(function(i){
+			var tag = table[word]['_tags'][i];
+			result[tag] = result[tag] || {};
+			result[tag][word] = { '_count': table[word]['_count'] };
+		});
+	});
+
+	return result;
+}
+
+TagsTable.prototype._isTagsTable = function(obj){
+	return obj.constructor && obj.constructor.name == TagsTable.name;
+}
+
+TagsTable.prototype.merge = function(tagsTable){
+	if(!this._isTagsTable(tagsTable))return;
+	var that = this;
+	var table;
+	table = WordsTable.prototype._extend(this.body.table,tagsTable.body.table,function(target,source,prop){
+		var result;
+		var plusHandler = function(old,last){
+			return (old = old ? old : 0) + last;
+		};
+	
+		switch(prop){
+			case '_count':
+				result = plusHandler(target,source);
+				break;
+		};
+		
+
+		return result;
+	});
+
+	this.body['table'] = table;
+}
+
+TagsTable.prototype.toSimple = function(){
+	var table = ObjectTable.prototype.clone(this.body.table);
+	var result = {};
+
+	Object.keys(table).forEach(function(tag){
+		Object.keys(table[tag]).forEach(function(word){
+			result[tag] = result[tag] || {};
+
+			result[tag][word] = [table[tag][word]['_count']];
+		});
+	});
+
+	return result;
+}
+
+TagsTable.prototype.fromSimple = function(obj){
+	var tags = Object.keys(obj);
+	var result = {};
+	if(!tags)return;
+
+	tags.forEach(function(tag){
+		Object.keys(obj[tag]).forEach(function(word){
+			result[tag] = result[tag] || {};
+
+			result[tag][word] = { '_count':obj[tag][word][0] };
+		});
+	});
+
+	this.body.table = result;
+}
+
+WordsTable.prototype._reduce = function(target,source,func){
+	var exceptList = ['_tags'];
+	for (var prop in source) {
+		if (typeof source[prop] === 'object' && exceptList.indexOf(prop) == -1) {
+		  target[prop] = this._reduce.call(this,target[prop], source[prop],func);
+		}else {
+		  if(target[prop]){
+		  	if(typeof func === 'function')
+		  		func(target[prop],source[prop],prop);
+		  	else
+		  		delete target[prop];
+		  }
+		}
+	}
+	return target;
+};	
+
+WordsTable.prototype._extend = function(target,source,func) {
+	target = target || {};
+	var exceptList = ['_count','_tags'];
+	for (var prop in source) {
+		if (typeof source[prop] === 'object' && exceptList.indexOf(prop) == -1) {
+			if(source[prop].constructor.name === 'Array')
+				target[prop] = target[prop] || [];
+			target[prop] = this._extend.call(this,target[prop], source[prop],func);
+		}else {
+			if(typeof func === 'function')
+				target[prop] = func(target[prop],source[prop],prop);
+			else
+				target[prop] = source[prop];
+		}
+	}
+	return target;
+};
+
+WordsTable.prototype._isWordsTable = function(obj){
+	return obj.constructor && obj.constructor.name == WordsTable.name;
+}
+WordsTable.prototype._fromTagsTable = function(obj){
+	if(!TagsTable.prototype._isTagsTable(obj))return;
+	var table = obj.body.table;
+	var result = {};
+	Object.keys(table).forEach(function(tag){
+		Object.keys(table[tag]).forEach(function(word){
+			result[word] = result[word] || { _count : table[tag][word][0], _tags:[] };
+			result[word]['_tags'].push(tag);
+			result[word]['_tags'] = ObjectTable.prototype._unique(result[word]['_tags']);
+		});
+	});
+
+	return result;
+}
+
+WordsTable.prototype._reduceTagHandler = function(old,last){
+	if(old instanceof Array && last instanceof Array){
+		last.forEach(function(tag){
+			old.splice(tag,1);
+		});
+	}
+
+	return old;
+};		
+
+WordsTable.prototype.deMerge = function(wordsTable){
+	if(!this._isWordsTable(wordsTable))return;
+	var table;
+
+	table = this._reduce(this.body.table,wordsTable.body.table,function(target,source,prop){
+		var result;
+
+		switch(prop){
+			case '_tags':
+				result = _reduceTagHandler(target,source);
+				break;
+		};
+	});
+
+	this.body['table'] = table;
+}
+
+WordsTable.prototype._plusCountHandler = function(old,last){
+	return (old = old ? old : 0) + last;
+}
+
+WordsTable.prototype._mergeTagHandler = function(old,last){
+	if(typeof(old) == 'undefined' || old == null)old = [];
+	if(last instanceof Array){
+		old =  old.concat( last );
+	}else if(last != null && last != that.NONE_TAG)
+		old.push( last );
+
+	old = ObjectTable.prototype._unique(old);
+
+	return old;
+};
+
+
+WordsTable.prototype.merge = function(wordsTable){
+	if(!this._isWordsTable(wordsTable))return;
+	var that = this;
+	var table;
+	table = this._extend(this.body.table,wordsTable.body.table,function(target,source,prop){
+		var result;
+		
+		switch(prop){
+			case '_count':
+				result = _plusCountHandler(target,source);
+				break;
+			case '_tags':
+				result = _mergeTagHandler(target,source);
+				break;
+		};
+		
+
+		return result;
+	});
+
+	this.body['table'] = table;
+}
+
+WordsTable.prototype.load = function(wordsArray){
+	var that = this;
+	wordsArray.forEach(function(word){
+		var info = that.body.table[word];
+		
+		info = info || {};
+		info['_count'] = info['_count'] ? info['_count']+1 : 1;
+		info['_tags']  = info['_tags'] || [];
+
+		that.body.table[word] = info;
+	});
+}
+
+WordsTable.prototype.toSimple = function(){
+	var table = ObjectTable.prototype.clone(this.body.table);
+	var result = {};
+
+	Object.keys(table).forEach(function(word){
+		result[word] = [ table[word]['_count'],table[word]['_tags'] ];
+	});
+
+	return result;
+};
+
+WordsTable.prototype.fromSimple = function(obj){
+	var words = Object.keys(obj);
+	var result = {};
+	if(!words)return;
+
+	words.forEach(function(word){
+		result[word] = result[word] || {};
+
+		result[word]['_count'] = obj[word][0];
+		result[word]['_tags']  = obj[word][1];
+	});
+
+	this.body.table = result;
+};
+
+WordsTable.prototype.getInfo = function(word){
+	return this.body.table[word];
 }
 
 function WordInfo(construct,selfDelete){
@@ -909,6 +1280,36 @@ function WordInfo(construct,selfDelete){
 		}
 	}
 
+	this.extend = function(target, source) {
+		target = target || {};
+		for (var prop in source) {
+			var r = this._getRm(prop);
+			if(r){this.remove(r);continue;}
+			if (typeof source[prop] === 'object') {
+			  target[prop] = this.extend.call(this,target[prop], source[prop]);
+			}else {
+			  target[prop] = source[prop];
+			}
+		}
+		return target;
+	}
+
+	this.newMerge = function(obj){
+		var counter = 0;
+		var scounter = 0;
+		var wti = null;
+		var ref = {};
+
+		/*is raw data object or WordInfo object*/
+		if(obj.constructor && obj.constructor.name == this.constructor.name){
+			wti = obj._wti;
+			ref = obj.defaultRef;
+		}else
+			wti = obj;
+
+		this.extend(this._wti,wti);
+		
+	}
 
 	this.merge = function(obj){
 		var counter = 0;
@@ -949,8 +1350,8 @@ function WordInfo(construct,selfDelete){
 		}
 
 		for(var key in ref){
-			this.setInfo(key,[{'index':0,'value':ref[key][0]}],this._plus);
-			this.setInfo(key,[{'index':1,'value':ref[key][1]}],this._getNewTag);			
+				this.setInfo(key,[{'index':0,'value':ref[key][0]}],this._plus);
+				this.setInfo(key,[{'index':1,'value':ref[key][1]}],this._getNewTag);		
 		}
 
 		return scounter ? scounter : counter;
@@ -965,6 +1366,7 @@ function WordInfo(construct,selfDelete){
 	}
 
 	this.remove = function(key,root){
+		if(!key)return;
 		delete this.defaultRef[key];
 		if(root && this._wti[root])
 			delete this._wti[root][key];
@@ -1399,6 +1801,7 @@ function convert_keycode(isCtrl,isShift,isAlt,keyCode){
 	return keys;
 }
 
+/*keyboard shortcut*/
 function init_shortcuts(){
 	for(var key in add_tag_shortcuts){
 		$.Shortcuts.add({
@@ -1537,16 +1940,25 @@ function action() {
 	//loadTagColor();
 }
 
-function actionEx(){
+function actionEx(func){
 	doctor = new Doctor();
 	wi = new WordInfo();
 	wi_del = new WordInfo(null,false);
-    content = doctor.getContent();
+	highlighter = null;
+	gTagger = null;
+
+    content = doctor.getContent()
     wi.load(doctor.getWords(doctor.getContent()));
 	tagger = new Tagger(wi,stemmer,gc);
+
 	tagger_del = new Tagger(wi_del,stemmer,gc);	
+
+	
 	_couchDb.isDocExists(doctor.getContentFingerPrint());
-	_couchDb.getTags();
+	_couchDb.getLastWti(function(tags,hl){
+		if(func)func.call(this,tags,hl);
+	});
+	//_couchDb.getTags();
 	/*highlighter = new Highlighter(tag_colors);*/
 	
 }
@@ -1576,7 +1988,7 @@ function invertTagsInfo(tagsInfo,index){
 					invertedInfo[key][word] = tagsInfoClone[root][word];
 			}
 			/*no reference is required now, remove it*/
-			tagsInfoClone[root][word].splice(index,1)
+			tagsInfoClone[root][word].splice(index,1);
 		}
 	}
 
@@ -1930,9 +2342,9 @@ $(document).ready(function(){
 	//deletedTagString = localStorage.getItem(deletedTagKey);
 	//if(deletedTagString != null)deletedTags = JSON.parse(deletedTagString);
 
-	if(!NO_WTI)
-		_couchDb.getLastWti();
-	else{
+	if(!NO_WTI){
+		//_couchDb.getLastWti();
+	}else{
 		var source = localStorage.getItem(tagKey);
 		if(source == '' || typeof(source) == 'undefined' || source == null)
 			localStorage.setItem(tagKey,'');
@@ -1940,21 +2352,21 @@ $(document).ready(function(){
 			tagsInfo = JSON.parse(source);
 	}
 
-	$("#saveTagInfo").live('click',function(){
+	$("#saveTagInfo").on('click',function(){
 		save();
 	});
-	$("#clearTagInfo").live('click',function(){
+	$("#clearTagInfo").on('click',function(){
 		localStorage.removeItem(tagKey);
 		localStorage.removeItem(docKey);
 		localStorage.removeItem(crumbKey);
 	});
-	$("#outputTagInfo").live('click',function(){
+	$("#outputTagInfo").on('click',function(){
 		var allMyTagInfo = localStorage.getItem(tagKey);
 		allMyTagInfo = JSON.parse(allMyTagInfo);
 
 		console.log(allMyTagInfo);
 	});
-	$("#submitRemove").live('click',function(){
+	$("#submitRemove").on('click',function(){
 		var val = $("#removeTag").val().split(':');
 
 		var word = val[0];
@@ -1966,7 +2378,7 @@ $(document).ready(function(){
 		
 		addCrumb(root,word,tag,docId,0);
 	});
-	$("#commitAssign").live('click',function(){
+	$("#commitAssign").on('click',function(){
 		var tags = $("#assignTags").val().split(',');
 		for(var i in wordArray){
 			var word = wordArray[i];
@@ -1974,7 +2386,7 @@ $(document).ready(function(){
 		}
 
 	});
-	$("#highlight").live('click',function(){
+	$("#highlight").on('click',function(){
 		var tags = $("#highlightsTags").val().split(',');
 		highlightBy(tags);
 	});

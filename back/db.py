@@ -12,6 +12,10 @@ import json
 from cgi import parse_qs,escape
 
 
+def hasKey(obj,key):
+    return obj.has_key(key) and obj[key]
+
+
 def setUid2Key(obj,uid):
     uid = str(uid)
     
@@ -33,7 +37,7 @@ def setUid2Key(obj,uid):
     so you may need to swap the values of the startkey and endkey options 
     to get the expected results.
     '''
-    if obj.has_key(descending) and obj[descending]:
+    if hasKey(obj,descending) and hasKey(obj,startkey) and hasKey(obj,endkey):
         obj[startkey],obj[endkey] = obj[endkey],obj[startkey]
 
     obj = parseBack(obj)

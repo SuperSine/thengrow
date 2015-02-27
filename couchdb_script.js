@@ -86,6 +86,22 @@ return[doc,doc.s.length.toString()];
 
 function(doc,req){return [{'_id':new Date().getTime()*Math.random(1,100)},""];}
 
+
+/*update_wti*/
+function(doc,req){
+    var lib = {
+        require('WordsTable'),
+        require('TagsTable'),
+        require('Doctor'),
+        require('Tagger'),
+        require('stemmer'),
+        require('gc'),
+        require('stripHtml')
+    };
+
+
+}
+
 /*mergeWti*/
 function(doc,req){
 req.body = JSON.parse(req.body);
@@ -105,7 +121,18 @@ var items_affected=old.merge(last);
 items_affected+=old.merge(del);
 doc.word_tag_info=old.toJson();
 if(doc.doc && qDoc){doc.doc.push(qDoc)}else{doc.doc=[qDoc]};
-if(req.body.id){delete doc._rev;delete doc._revisions;var nDoc = doc.doc.pop();if(nDoc)doc.doc=[nDoc];else doc.doc=null;doc.timestamp=req.body.timestamp;}else{newDoc=doc;}
+if(req.body.id){
+    delete doc._rev;
+    delete doc._revisions;
+    var nDoc = doc.doc.pop();
+    if(nDoc)
+        doc.doc=[nDoc];
+    else 
+        doc.doc=null;
+    doc.timestamp=req.body.timestamp;
+}else{
+    newDoc=doc;
+}
 doc._id=req.body.id;
 doc.type = req.body.type;
 doc.uid = req.body.uid;

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='reader_style.css') }}">
@@ -6,17 +7,35 @@
 <link rel="stylesheet" type="text/css" href="static/bootstrap/dist/css/bootstrap.css">
 <script type="text/javascript" src="static/js/porterstemmer.js"></script>
 <script type="text/javascript" src="static/js/utils.js"></script>
-<script type="text/javascript" src="static/js/jquery-1.7.1.js"></script>
+<script type="text/javascript" src="static/vendor/jquery/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="static/vendor/jquery/jquery_ui/jquery-ui.min.js"></script>
+<script type="text/javascript" src="static/assets/js/bootstrap/bootstrap.min.js"></script> 
+<script type="text/javascript" src="static/js/bootstrap-tagsinput/bootstrap-tagsinput.js"></script>
+<script type="text/javascript" src="static/js/typeahead.min.js"></script>
+<script type="text/javascript" src="static/js/hogan-2.0.js"></script>
+<script type="text/javascript">$.browser = {msie:0,opera:0,mozilla:0}</script>
 <script type="text/javascript" src="static/js/apache.jquery.couch.js"></script>
 <script type="text/javascript" src="static/js/jquery.myhighlight-3.js"></script>
-<script type="text/javascript" src="static/js/jquery.shortcuts.js"></script>
+<!--<script type="text/javascript" src="static/js/jquery.shortcuts.js"></script>-->
 <script type="text/javascript" src="static/js/engrow.js"></script>
 <script type="text/javascript" src="static/js/md5.js"></script>
-<script type="text/javascript" src="static/js/ui.js"></script>
-<script type="text/javascript" src="static/js/bootstrap-tagsinput.js"></script>
+<!--<script type="text/javascript" src="static/js/ui.js"></script>-->
+<link rel='stylesheet' type='text/css' href="{{ url_for('static',filename='assets/fonts/fonts.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='assets/skin/default_skin/css/theme.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='assets/admin-tools/admin-plugins/admin-panels/adminpanels.css') }}">
+<style type="text/css">
 
 
-<script type="text/javascript" src="static/bootstrap/dist/js/bootstrap.min.js"></script>    
+.popover{
+    display:block !important;
+    max-width: 400px!important;
+    width:auto;
+}
+
+</style>
+
+
+
 <script type="text/javascript">
 	//NO_WTI = true;
 /*
@@ -30,6 +49,8 @@
 		}
 	}
 */
+
+
 function getSelectionDimensions() {
     var sel = document.selection, range;
     var width = 0, height = 0;
@@ -130,7 +151,7 @@ var markSelection = function() {
       markerEl.parentNode.removeChild(markerEl);
     }
 
-    return range.toString();
+    return sel.toString();
     
 };
     
@@ -193,12 +214,7 @@ var markSelection = function() {
 			}
 		});
 	}
-	$("#"+Highlighter.prototype.ContentArea).live('DOMSubtreeModified',function(){
-		if(typeof(this.initial) != 'undefined')return;
-		this.initial = 1;
-	
-		action();
-	});
+
 </script>
 
 <style type="text/css">
@@ -207,15 +223,59 @@ var markSelection = function() {
 
 </head>
 <body>
-<div style="display:none;">
+<div id="popoverContentContainer" style="display:none;">
 
-<div id="popoverContent1" class="hide">
-	<input id="bigbian" />
+<div id="popoverContent1">
+	<input class="bigbian" />
 </div>    
 
  </div>
-<div>
-	<input id="content_title" value="">
+
+<nav class="navbar navbar-default" role="navigation">
+  <!-- Brand and toggle get grouped for better mobile display -->
+  <div class="navbar-header">
+    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+      <span class="sr-only">Toggle navigation</span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </button>
+    <a class="navbar-brand" href="#">Navbar</a>
+  </div>
+
+  <!-- Collect the nav links, forms, and other content for toggling -->
+  <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+    <ul class="nav navbar-nav">
+      <li class="active"><a href="#">Link</a>
+      </li>
+      <li class="disabled"><a href="#">Link</a>
+      </li>
+      <li class="dropdown">
+        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Dropdown <b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          <li><a href="#">Action</a>
+          </li>
+          <li><a href="#">Another action</a>
+          </li>
+          <li><a href="#">Something else here</a>
+          </li>
+          <li class="divider"></li>
+          <li><a href="#">Separated link</a>
+          </li>
+          <li class="divider"></li>
+          <li><a href="#">One more separated link</a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <form class="navbar-form navbar-right" role="search">
+      <button class="btn">Save</button>
+    </form>
+  </div>
+  <!-- /.navbar-collapse -->
+</nav>
+
+<div style="display:none;">
 	<input id="content_cate" value="">
 	<input class="btn" id="actionbutton" type="button" value="action"/>
 	<input class="btn1" type="button" value="action"/>
@@ -242,32 +302,65 @@ var markSelection = function() {
 	<input id="clearTagInfo" type="button" value="clear"/>
 	<input id="outputTagInfo" type="button" value="output"/>
 </div>
-<div id="contentarea" contenteditable="true" spellcheck="false"></div>
+
+<div class='admin-panels'>
+<div class="col-md-6 col-lg-3" id="grid-3" style="margin-left:15%;width:70%">
+                            
+                    
+                    <div class="panel mobile-controls" id="p20">
+                                <div class="panel-heading">
+                                    <span class="panel-title text-info fw700"><i class="fa fa-pencil hidden"></i>Dot/Addon Stats</span>
+                                </div>
+                                           
+                        <div id="contentarea" contenteditable="true" class="panel-body pn"></div>
+
+                        </div>
+                    </div>
+
+            </div>
+</div>
+<!--<div id="contentarea" contenteditable="true" spellcheck="false"></div>-->
 <div id="resultarea"></div>
 <div id="content_dict_area"></div></body>
+<!-- Admin Panels  -->
+<script type="text/javascript" src="{{ url_for('static',filename='assets/admin-tools/admin-plugins/admin-panels/json2.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static',filename='assets/admin-tools/admin-plugins/admin-panels/jquery.ui.touch-punch.min.js') }}"></script>
+<!-- Theme Javascript -->
+<script type="text/javascript" src="static/assets/js/utility/utility.js"></script>
+<script type="text/javascript" src="static/assets/js/main.js"></script>
+<script type="text/javascript" src="static/assets/js/demo.js"></script>
+<script type="text/javascript" src="{{ url_for('static',filename='assets/admin-tools/admin-plugins/admin-panels/adminpanels.js') }}"></script>
 <script type="text/javascript">
 
+var valSelected = false;
+var selectedText = "";
+
     function showTagPanel(){
-    	var obj = document.querySelector("#big");
-
-    	if(obj)obj.remove();
-
-    	markSelection();
+      //console.log($("#big").popover());
+      if (document.querySelector(".popover")) {
+           $("#popoverContentContainer").append($("#popoverContent1"));
+      }
 
     	$('#big').popover({
+            animation:false,
             html: true,
             placement:'top',
-            content: $('#popoverContent1').html(),
+            content: function(){ return $('#popoverContent1');},
             trigger:'manual'
-        });
+        })
 
     	$("#big").popover("show");
 
     }
 
+    function hideTagPanel(){
+      $("#popoverContentContainer").append($("#popoverContent1"));
+      $('#big').popover('hide');      
+    }
+
     
 	$(document).ready(function(){
-		init_shortcuts();
+		/*init_shortcuts();
 		var menu = ui.menu()
 		.add('Update',function(){saveEx();})
 		.add('Edit item', function(e){ console.log(e); })
@@ -287,7 +380,7 @@ var markSelection = function() {
 		  e.preventDefault();
 		  menu.moveTo(e.pageX, e.pageY).show();
 		};		
-
+*/
 		var id = localStorage.getItem('engrow_id');
 
 		if(id){
@@ -296,17 +389,36 @@ var markSelection = function() {
 
 		}     
         
-       
+ 
         
         $(document).on('dblclick',function (e) {
-        	showTagPanel();
+        	if(!document.querySelector(".popover")){
+              var obj = document.querySelector("#big");
+
+              if(obj)obj.remove();
+
+              selectedText = markSelection();
+
+              $('.bigbian').tagsinput('removeAll');
+
+              var tagsArray = tagger.getTags(selectedText);
+
+              tagsArray.forEach(function(key){
+                if(!key)return;
+                $('.bigbian').tagsinput('add', { "key": key , "name":  tagger.getTagName(key) });
+              });
+              
+              showTagPanel();
+          }
+        		
         	/*
         	console.log(e);
             if ($(e.target).is('.close')) {
                 $('#big').popover('hide');
             }
             */
-        });   
+        });
+
 
 /*
         $(document).on('mouseup',function(e){
@@ -315,29 +427,97 @@ var markSelection = function() {
         	showTagPanel();
         });
 */
+        $('.bootstrap-tagsinput > span > span[data-role=remove]').on('click',function(e){
+          // valSelected = true;
+            //showTagPanel();
+        });
+        
+        
         $(document).on('click',function (e) {
-        	if(e.toElement == document.activeElement && document.activeElement.id == 'bigbian')return;
+        	if(document.activeElement.parentNode.className == 'twitter-typeahead' || valSelected){valSelected = false;return;}
 
             if (document.querySelector(".popover")) {
-                $('#big').popover('hide');
+                var tags = $('.bigbian').val();
+                tagger.setTag(selectedText,tags);
+                hideTagPanel();
             }
+          valSelected = false;
         });     
 
-		$('#bigbian').tagsinput({
-		  itemValue: 'value',
-		  itemText: 'text',
-		  typeahead: {
-		    source: function(query) {
-		      return [{"value":1,"text":"Amsterdam","continent":"Europe"},{"value":4,"text":"Washington","continent":"America"},{"value":7,"text":"Sydney","continent":"Australia"},{"value":10,"text":"Beijing","continent":"Asia"},{"value":13,"text":"Cairo","continent":"Africa"},{"value":6,"text":"Buenos Aires","continent":"America"}];
-		    }
-		  }
-		});
-		 
-		$('#bigbian').tagsinput('add', { "value": 1 , "text": "Amsterdam"  });
-		$('#bigbian').tagsinput('add', { "value": 4 , "text": "Washington" });
-		$('#bigbian').tagsinput('add', { "value": 7 , "text": "Sydney"     });
-		$('#bigbian').tagsinput('add', { "value": 10, "text": "Beijing"    });
-		$('#bigbian').tagsinput('add', { "value": 13, "text": "Cairo"      });
+
+function initTagsInput(dataset){
+    if(!dataset)return;
+
+    var substringMatcher = function(objs) {
+      return function findMatches(q, cb) {
+        var matches, substringRegex;
+
+        // an array that will be populated with substring matches
+        matches = [];
+
+        // regex used to determine if a string contains the substring `q`
+        substrRegex = new RegExp(q, 'i');
+
+        // iterate through the pool of strings and for any string that
+        // contains the substring `q`, add it to the `matches` array
+        $.each(objs, function(i, obj) {
+          if (substrRegex.test(obj.name)) {
+            // the typeahead jQuery plugin expects suggestions to a
+            // JavaScript object, refer to typeahead docs for more info
+            matches.push(obj);
+          }
+        });
+
+        cb(matches);
+      };
+    };
+
+  $('.bigbian').tagsinput({
+    itemValue: 'key',
+    itemText: 'name'
+  });
+  //$('.bigbian').tagsinput('add', { "value": 1 , "text": "Amsterdam"   , "continent": "Europe"    });
+
+   
+  $('.bigbian').tagsinput('input').typeahead({
+    hint: true,
+    highlight: true,
+    minLength: 1
+  },
+  {
+    name: 'dataset',
+    displayKey: 'name',
+    source: substringMatcher(dataset)
+  }).bind('typeahead:selected', $.proxy(function (obj, datum) {
+    valSelected = true;
+    this.tagsinput('add', datum);
+    this.tagsinput('input').typeahead('resetInputValue');
+    //$("#popoverContentContainer").append($("#popoverContent1"));
+    //hideTagPanel();
+    showTagPanel();
+  }, $('.bigbian')));  
+}
+
+
+  $("#"+Highlighter.prototype.ContentArea).on('DOMSubtreeModified',function(){
+    if(typeof(this.initial) != 'undefined')return;
+    this.initial = 1;
+  
+    action(function(tags,hl){
+          tagger.tags = tags;
+          highlighter = hl;
+          gTagger = new Tagger(twi,stemmer,gc);
+          tagger.mergeCommonTag(twi);
+          dataset = tagger.getTagsArray();
+          initTagsInput(dataset);
+    });
+  });		 
+  // Init Admin Panels on widgets inside the ".admin-panels" container
+  $('.admin-panels').adminpanel({
+      grid: '.admin-grid',
+      draggable: true,
+      mobile: false
+  });
 	});
 </script>
 </html>
