@@ -1071,7 +1071,7 @@
             }
 
             Doctor.prototype.getContentFingerPrint = function(){
-                return md5(JSON.stringify(this.wordArray));
+                return uniqid();
             }
 
             action = actionEx;

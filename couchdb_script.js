@@ -88,18 +88,112 @@ function(doc,req){return [{'_id':new Date().getTime()*Math.random(1,100)},""];}
 
 
 /*update_wti*/
-function(doc,req){
-    var lib = {
-        require('WordsTable'),
-        require('TagsTable'),
-        require('Doctor'),
-        require('Tagger'),
-        require('stemmer'),
-        require('gc'),
-        require('stripHtml')
+/*要测试三种情况：1）文章与标签一起更新，2）只更新标签，3）更新第一或第二种情况外，还更新了删除标签*/
+function update_wti(doc,req){
+    var utils = Utils;
+    var params;
+    var smallWt = new WordsTable();
+    var article = new Doctor();
+    var taggerAdd;
+    var taggerDel;
+    var bigTt = new TagsTable();
+    var bigWt;
+    var response = {
+        status : 1,
+        message : 'Update Complete!'
     };
+    
+    doc = doc || {};
 
+    try{
+        params = JSON.parse(req.body);
+    }catch(ex){
+        response.status = 0;
+        response.message = 'Illegal Params!';
 
+        return [doc,response];
+    }
+
+    /*doctor impl*/
+    Doctor.prototype.getContent = function(){
+        return utils.stripHtml(this.getContentView());
+    }
+
+    Doctor.prototype.getContentTitle = function(){
+        return params.title || 'Untitled';
+    }
+
+    Doctor.prototype.getContentView = function(){
+        return params.doc || '';
+    }
+
+    Doctor.prototype.getContntCate = function(){
+        return params.cate || '';
+    }
+
+    Doctor.prototype.getContentFingerPrint = function(){
+        return utils.uniqid();
+    }
+
+    var getUserId = function(){
+        return params.uid;
+    }
+
+    var noArticleContent = function(){
+        return article.wordArray.length == 0;
+    }
+
+    var noWord = function(word){
+        return article.wordArray.length > 0 && article.wordArray.indexOf(word.trim()) == -1
+    }
+
+    var createAndLoadTag = function(newTags,wt){
+        var tagger = new Tagger(wt,utils.stemmer,utils.gc);
+        tagger.loadTags(doc.tags || {});
+        
+        if(newTags){
+            Object.keys(newTags).forEach(function(tag){
+                newTags[tag].forEach(function(word){
+                    if(noWord(word))return;
+                    tagger.addTagByName(word,tag);
+                });
+            }); 
+        }      
+
+        return tagger;
+    }
+
+    if(doc && doc.wti){
+        bigTt.fromSimple(doc.wti);
+    }
+
+    smallWt.load(article.getWords( article.getContent() ));
+
+    taggerAdd = createAndLoadTag(params.new_tags,smallWt);
+    taggerDel = createAndLoadTag(params.del_tags,new WordsTable());
+
+    bigWt = new WordsTable(bigTt);
+
+    bigWt.merge(taggerAdd._wordsTable);
+    bigWt.deMerge(taggerDel._wordsTable);
+
+    if(!noArticleContent()){
+        doc._id = null;
+        doc.article = doc.article || {};
+        doc.article.content = article.getContentView();
+        doc.article.id = utils.uniqid();
+
+         /*remove _rev and _revisions to tell CouchDb to create a new doc*/
+        delete doc._rev;
+        delete doc._revisions;            
+    }
+        
+    doc.wti = new TagsTable(bigWt).toSimple();
+    doc.tags = taggerAdd.tags;
+    doc.time = new Date().toUTCString();
+    doc.uid = getUserId();
+
+    return [doc,response];
 }
 
 /*mergeWti*/

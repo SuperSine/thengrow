@@ -54,7 +54,6 @@ var docCookies = {
   }
 };
 
-function Utils(){}
 
 Utils.get_array = function(value){
   if(typeof(value) == 'string')value = value.split(',');
@@ -597,27 +596,24 @@ Tagger.initTags = function(tags,methoder){
 
 function Tagger(wt,getfeature,gc){
 	this.gc = gc;
-	this.newTags = {};
 	this.tags = {};
-	this._crumbs = [];
 	this.getfeature = getfeature;
-	this.featureEnable = true;
-//Object.keys(tagger.tags).forEach(function(key){tagger.tags[key]['key']=key;l.push(tagger.tags[key])})
-	if(wt.constructor && wt.constructor.name == WordsTable.name){
-		this._wordsTable = wt;
-		this._features = {};
-		for(var key in this._wordsTable.body.table){
-			var feat = getfeature(key);
-	        if (this._features[feat] != null) {
-	            if (this._features[feat].indexOf(key) == -1)
-					this._features[feat].push(key);
-	            
-	        } else {
-	            this._features[feat] = [];
-	            this._features[feat].push(key);
-	        }		
+
+	this.addFeature = function(value){
+		var feat = getfeature(value);
+
+		if(this._features[feat]){
+			if(this._features[feat].indexOf(value) == -1)
+				this._features[feat].push(value);
+		}else{
+            this._features[feat] = [];
+            this._features[feat].push(value);			
 		}
+
+		return this._features[feat];
+
 	}
+
 	this._isUpperWord = function(word){
 		return word.match(/\b([A-Z]+)\b/g) == undefined ? false : true; 
 	}
@@ -648,13 +644,16 @@ function Tagger(wt,getfeature,gc){
 
 	this.createTag = function(name,color,shrt){
 		if(!this.gc || !name)return null;
+		var gcValue = gc(5);
 		var newTag = {
 			'name':name,
 			'color':color ? color : '',
 			'shrt':shrt ? shrt : ''
 		};
 		/*this.newTags[gc(5)] = newTag;*/
-		this.tags[gc(5)] = newTag;
+		this.tags[gcValue] = newTag;
+
+		return gcValue;
 	}
 
 	this.addTagByName = function(word,tnames){
@@ -663,9 +662,10 @@ function Tagger(wt,getfeature,gc){
 		if(!word || !tnames || tnames.length == 0)return;	
 		
 		var tids = [];
+		var that = this;
 		tnames.forEach(function(name){
-			var id = getTagId('name',name);
-			id = id ? id : createTag(name);
+			var id = that.getTagId('name',name);
+			id = id ? id : that.createTag(name);
 
 			tids.push(id);
 		});
@@ -687,10 +687,16 @@ function Tagger(wt,getfeature,gc){
 		var wrapper = {};
 		var feature = this.getfeature(word);
 		var words = this._features[feature];
+		var that = this;
 
-		Object.keys(words).forEach(function(word){
+		if(!words){
+			words = this.addFeature(word);
+			this._wordsTable.load([ word ]);
+		}
+
+		words.forEach(function(word){
 			/*set 1 to the count if the word does not exist*/
-			var count = this._wordsTable.getInfo(word) ? 0 : 1;
+			var count = that._wordsTable.getInfo(word) ? 0 : 1;
 			wordsTable.body.table[word] = {'_count':count,'_tags':tids};
 		});
 
@@ -700,13 +706,12 @@ function Tagger(wt,getfeature,gc){
 	}
 
 	this.setTag = function(word,tids){
-
-		var getNewTag = this._wi._getNewTag;
-		this._wi._getNewTag = function(old,last){ return last; };
+		var _mergeTagHandler = this._wordsTable._mergeTagHandler;
+		this._wordsTable._mergeTagHandler = function(old,last){ return last; };
 
 		this.addTag(word,tids);
 
-		this._wi._getNewTag = getNewTag;
+		this._wordsTable._mergeTagHandler = _mergeTagHandler;
 	}
 
 	this.getTags = function(word){
@@ -718,18 +723,17 @@ function Tagger(wt,getfeature,gc){
 		return info && info['_tags'] ? info['_tags'] : [];
 	}
 	this.hasTag = function(word,tids){
-		var info = this._wi.getInfo(word);
-		if(!info || !info[1])return false;
-		tids = Utils.get_array(tids);
-		var cTids = intersect(info[1],tids);
+		return false;
+	}
 
-		return cTids.length == tids.length ? true : false;
+	this.loadTags = function(tags){
+		this.tags = JSON.parse( JSON.stringify(tags) );
 	}
 
 	this.mergeCommonTag = function(fWi,tags,defaultTags){
 		/*tags = Utils.get_array(tags);*/
-		for(var key in this._wi._wti){
-			var info = fWi.getInfo(key) ? fWi.getInfo(key)[1] : null;
+		for(var key in this._wordsTable.body.table){
+			var info = fWi.getInfo(key) ? fWi.getInfo(key)['_tags'] : null;
 			if(defaultTags && !info){
 				info = typeof(defaultTags) == "string" ? defaultTags.split(',') : defaultTags;
 			}else if(!info)
@@ -739,18 +743,14 @@ function Tagger(wt,getfeature,gc){
 		}
 	}
 
-	this.addCrumb = function(word,hex,id,status){
-		this._crumbs.push({
-				'root':this.getfeature(word),
-				'word':word,
-				'tag':hex,
-				'doc_id':id,
-				'time':new Date().getTime() / 1000,
-				'status':status
-			});
-
-		return true;
+	if(wt.constructor && wt.constructor.name == WordsTable.name){
+		this._wordsTable = wt;
+		this._features = {};
+		for(var key in this._wordsTable.body.table){
+			this.addFeature(key);		
+		}
 	}
+
 }
 
 function Highlighter(tags,contentarea){
@@ -964,15 +964,15 @@ TagsTable.prototype.fromSimple = function(obj){
 WordsTable.prototype._reduce = function(target,source,func){
 	var exceptList = ['_tags'];
 	for (var prop in source) {
+		if(!target || !target[prop])continue;
+
 		if (typeof source[prop] === 'object' && exceptList.indexOf(prop) == -1) {
 		  target[prop] = this._reduce.call(this,target[prop], source[prop],func);
 		}else {
-		  if(target[prop]){
-		  	if(typeof func === 'function')
-		  		func(target[prop],source[prop],prop);
-		  	else
-		  		delete target[prop];
-		  }
+			if(typeof func === 'function')
+				func(target[prop],source[prop],prop);
+			else
+				delete target[prop];
 		}
 	}
 	return target;
@@ -1005,7 +1005,7 @@ WordsTable.prototype._fromTagsTable = function(obj){
 	var result = {};
 	Object.keys(table).forEach(function(tag){
 		Object.keys(table[tag]).forEach(function(word){
-			result[word] = result[word] || { _count : table[tag][word][0], _tags:[] };
+			result[word] = result[word] || { _count : table[tag][word]['_count'], _tags:[] };
 			result[word]['_tags'].push(tag);
 			result[word]['_tags'] = ObjectTable.prototype._unique(result[word]['_tags']);
 		});
@@ -1021,19 +1021,20 @@ WordsTable.prototype._reduceTagHandler = function(old,last){
 		});
 	}
 
+	if(!old.length)old.push( this.NONE_TAG );
+
 	return old;
 };		
 
 WordsTable.prototype.deMerge = function(wordsTable){
 	if(!this._isWordsTable(wordsTable))return;
 	var table;
-
+	var that = this;
 	table = this._reduce(this.body.table,wordsTable.body.table,function(target,source,prop){
-		var result;
 
 		switch(prop){
 			case '_tags':
-				result = _reduceTagHandler(target,source);
+				that._reduceTagHandler(target,source);
 				break;
 		};
 	});
@@ -1067,10 +1068,10 @@ WordsTable.prototype.merge = function(wordsTable){
 		
 		switch(prop){
 			case '_count':
-				result = _plusCountHandler(target,source);
+				result = that._plusCountHandler(target,source);
 				break;
 			case '_tags':
-				result = _mergeTagHandler(target,source);
+				result = that._mergeTagHandler(target,source);
 				break;
 		};
 		
@@ -1086,9 +1087,9 @@ WordsTable.prototype.load = function(wordsArray){
 	wordsArray.forEach(function(word){
 		var info = that.body.table[word];
 		
-		info = info || {};
+		info = info || {'_tags' : [ that.NONE_TAG ]};
+
 		info['_count'] = info['_count'] ? info['_count']+1 : 1;
-		info['_tags']  = info['_tags'] || [];
 
 		that.body.table[word] = info;
 	});
