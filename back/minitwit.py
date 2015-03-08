@@ -334,6 +334,10 @@ def reader():
 def test():
     return render_template('layout2.html')
 
+@app.route('/sandbox')
+def sandbox():
+    return render_template('sandbox.html')
+
 
 # add some filters to jinja
 app.jinja_env.filters['datetimeformat'] = format_datetime

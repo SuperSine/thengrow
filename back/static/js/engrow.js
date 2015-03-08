@@ -181,6 +181,20 @@ function CouchDb(url){
 		);		
 	}
 
+	this.testUpdateWti = function(id,doc,new_tags,title){
+		this.getInstance().db(this._wti_db_name).updateDoc(
+		"trigger/update_wti",
+		id || "",
+		{
+			new_tags : new_tags,
+			doc : doc,
+			title:title,
+			success:function(data){console.log(data);},
+			error:  function(data){console.error(data);}
+		}
+		);
+	}
+
 	this.mergeTags = function(tags){
 		/*var id = md5(USER_ID.toString() + '_' + 'tags');*/
 		var id = WTI_KEY ? WTI_KEY : "";
@@ -1050,10 +1064,12 @@ WordsTable.prototype._mergeTagHandler = function(old,last){
 	if(typeof(old) == 'undefined' || old == null)old = [];
 	if(last instanceof Array){
 		old =  old.concat( last );
-	}else if(last != null && last != that.NONE_TAG)
+	}else if(last != null && last != this.NONE_TAG)
 		old.push( last );
 
 	old = ObjectTable.prototype._unique(old);
+
+	if(old.length > 1)old.splice(this.NONE_TAG,1);
 
 	return old;
 };

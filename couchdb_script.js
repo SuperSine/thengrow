@@ -89,8 +89,46 @@ function(doc,req){return [{'_id':new Date().getTime()*Math.random(1,100)},""];}
 
 /*update_wti*/
 /*要测试三种情况：1）文章与标签一起更新，2）只更新标签，3）更新第一或第二种情况外，还更新了删除标签*/
-function update_wti(doc,req){
-    var utils = Utils;
+function(doc,req){
+    var lib = require("WtiLib");
+    var utils = lib.Utils;
+    var WordsTable = lib.WordsTable;
+    var TagsTable = lib.TagsTable;
+    var Doctor = lib.Doctor;
+    var Tagger = lib.Tagger;
+
+    /*doctor impl*/
+    Doctor.prototype = {
+        getContent : function(){
+            return utils.stripHtml(this.getContentView());
+        },
+        getContentTitle : function(){
+            return params.title || 'Untitled';
+        },
+        getContentView : function(){
+            return params.doc || '';
+        },
+        getContntCate : function(){
+            return params.cate || '';
+        }, 
+        getContentFingerPrint : function(){
+            return utils.uniqid();
+        },
+        getWords : function(content){
+            var regEx = /--{1,}|[^a-zA-Z]/ig;
+            var wordsArray = content.replace(regEx," ").split(" ");
+            this.wordArray = [];
+
+            for(var i in wordsArray){
+                var word = wordsArray[i];
+                if(word.length <=1 || word.length>=50)continue;
+                if(!Doctor.isUpperWord(word))word = word.toLowerCase();
+                this.wordArray.push(word);
+            }
+            return this.wordArray;  
+        }
+    };
+
     var params;
     var smallWt = new WordsTable();
     var article = new Doctor();
@@ -104,9 +142,12 @@ function update_wti(doc,req){
     };
     
     doc = doc || {};
+    doc.tags = doc.tags || {};
 
     try{
         params = JSON.parse(req.body);
+        params.new_tags = JSON.parse(params.new_tags || "{}");
+        params.del_tags = JSON.parse(params.del_tags || "{}");
     }catch(ex){
         response.status = 0;
         response.message = 'Illegal Params!';
@@ -114,26 +155,7 @@ function update_wti(doc,req){
         return [doc,response];
     }
 
-    /*doctor impl*/
-    Doctor.prototype.getContent = function(){
-        return utils.stripHtml(this.getContentView());
-    }
 
-    Doctor.prototype.getContentTitle = function(){
-        return params.title || 'Untitled';
-    }
-
-    Doctor.prototype.getContentView = function(){
-        return params.doc || '';
-    }
-
-    Doctor.prototype.getContntCate = function(){
-        return params.cate || '';
-    }
-
-    Doctor.prototype.getContentFingerPrint = function(){
-        return utils.uniqid();
-    }
 
     var getUserId = function(){
         return params.uid;
@@ -149,9 +171,9 @@ function update_wti(doc,req){
 
     var createAndLoadTag = function(newTags,wt){
         var tagger = new Tagger(wt,utils.stemmer,utils.gc);
-        tagger.loadTags(doc.tags || {});
+        tagger.loadTags(doc.tags);
         
-        if(newTags){
+        if(typeof newTags === 'object'){
             Object.keys(newTags).forEach(function(tag){
                 newTags[tag].forEach(function(word){
                     if(noWord(word))return;
@@ -178,7 +200,7 @@ function update_wti(doc,req){
     bigWt.deMerge(taggerDel._wordsTable);
 
     if(!noArticleContent()){
-        doc._id = null;
+        doc._id = req.uuid;
         doc.article = doc.article || {};
         doc.article.content = article.getContentView();
         doc.article.id = utils.uniqid();
@@ -193,8 +215,9 @@ function update_wti(doc,req){
     doc.time = new Date().toUTCString();
     doc.uid = getUserId();
 
-    return [doc,response];
+    return [doc,toJSON(doc)];
 }
+
 
 /*mergeWti*/
 function(doc,req){
