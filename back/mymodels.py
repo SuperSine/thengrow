@@ -28,7 +28,13 @@ class Message(BaseModel):
     class Meta:
         db_table = 'message'
 
+class TagsBody(BaseModel):
+    body_id = PrimaryKeyField(null=True, db_column='body_id')
+    user = IntegerField(db_column='user_id')
+    tags_body = TextField()
 
+    class Meta:
+        db_table = 'tagsbody'
 
 class User(BaseModel):
     email = TextField()

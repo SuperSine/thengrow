@@ -72,6 +72,8 @@ def init_db():
         User.create_table()
         Message.create_table()
         Follower.create_table()
+    if TagsBody.table_exists() == False:
+        TagsBody.create_table()
         """
         with app.open_resource(schema, mode='r') as f:
             db.cursor().executescript(f.read())

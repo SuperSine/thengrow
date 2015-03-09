@@ -123,10 +123,10 @@
         function getBasicJinjiaTmp(str){
          
             return str.replace(/(href|src)=\"(.*?)\"/g,function(one,two,three){
-                if(three.indexOf("http") !== 0) return two + "=\"{{ url_for('static',filename=\'" + three + "\') }}\"";
+                if(three.indexOf("http") !== 0) return two + "=\"\{\{ url_for('static',filename=\'" + three + "\') \}\}\"";
             });
 
-        }    
+        };    
         
         jQuery(document).ready(function() {
 
